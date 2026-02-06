@@ -375,7 +375,7 @@
     border-style:dashed;
     border-width:1px;
   }
-  .bgSwatch.photo::after{ content:"ūüď∑"; }
+  .bgSwatch.photo::after{ content:""; }
   .photoBgActive .bg-palette-wrap{ backdrop-filter: blur(2px); }
 
 
@@ -408,7 +408,20 @@
     z-index: 1;
   }
 
+
+  /* Upload icon button */
+  .bgSwatch.upload {
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .bgSwatch.upload svg{
+    width:16px; height:16px;
+    fill: currentColor;
+    opacity:0.9;
+  }
 </style>
+
 </head>
 
 <body>
@@ -431,14 +444,14 @@
     <div class="tune-wrap" aria-label="Training tuning">
       <div class="tune" role="group" aria-label="Timing">
         <span class="tune-label">Timing</span>
-        <button class="tune-btn" id="paceMinus" aria-label="Timing down">‚ąí</button>
+        <button class="tune-btn" id="paceMinus" aria-label="Timing down">−</button>
         <div class="dots" id="paceDots" aria-hidden="true"></div>
         <button class="tune-btn" id="pacePlus" aria-label="Timing up">+</button>
       </div>
 
       <div class="tune" role="group" aria-label="Circle size">
         <span class="tune-label">Size</span>
-        <button class="tune-btn" id="sizeMinus" aria-label="Size down">‚ąí</button>
+        <button class="tune-btn" id="sizeMinus" aria-label="Size down">−</button>
         <div class="dots" id="sizeDots" aria-hidden="true"></div>
         <button class="tune-btn" id="sizePlus" aria-label="Size up">+</button>
       </div>
@@ -448,7 +461,7 @@
 
   <div style="display:flex; gap:10px; align-items:center;">
     <div id="status">Press Start once. Then it runs continuously.</div>
-    <button id="closeBtn" title="Close">‚úē</button>
+    <button id="closeBtn" title="Close">✕</button>
   </div>
 </header>
 
@@ -869,8 +882,9 @@ function initBackgroundPalette(opts){
     // Photo swatch at end (opens image picker; long-press clears photo)
     const photo = document.createElement("button");
     photo.type = "button";
-    photo.className = "bgSwatch photo";
-    photo.title = "Use a photo as background";
+    photo.className = "bgSwatch upload";
+    photo.title = "Upload photo background";
+    photo.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20h14v-2H5v2zm7-16l-5 5h3v4h4v-4h3l-5-5z"/></svg>`;
     photo.setAttribute("role","option");
     photo.addEventListener("click", () => { openPhotoPicker(); });
 
@@ -1000,12 +1014,12 @@ game.classList.add("goldGlow");
     syncLinesViewport();
     setLevel();
 
-    setStatus("Get ready‚Ä¶");
+    setStatus("Get ready…");
     await preRoundCue(token);
     if (token !== runToken) return;
 
     phase = "showing";
-    setStatus(`Watch the sequence‚Ä¶ (${N})`);
+    setStatus(`Watch the sequence… (${N})`);
 
     circles = nonOverlappingPlacement(N).map((pos, i) => {
       const color = COLOR_PALETTE[i % COLOR_PALETTE.length];
@@ -1068,7 +1082,7 @@ game.classList.add("goldGlow");
       c.el.classList.add("visible");
     });
 
-    setStatus(`Your turn: click in order (1 ‚Üí ${N}).`);
+    setStatus(`Your turn: click in order (1 → ${N}).`);
   }
 
   function handleClick(circleObj) {
@@ -1096,7 +1110,7 @@ game.classList.add("goldGlow");
 
       const remaining = MISS_LIMIT - missesUsed;
       if (remaining > 0) {
-        setStatus(`Almost! Try again ‚ÄĒ ${remaining} miss${remaining===1?"":"es"} left this round.`);
+        setStatus(`Almost! Try again — ${remaining} miss${remaining===1?"":"es"} left this round.`);
         return; // keep playing this round
       } else {
         setStatus(`Out of chances this round.`);
@@ -1108,7 +1122,7 @@ game.classList.add("goldGlow");
   async function onSuccess() {
     phase = "transition";
     maxNThisSession = Math.max(maxNThisSession, N);
-    setStatus(`‚úÖ Success! Next round‚Ä¶`);
+    setStatus(`✅ Success! Next round…`);
     await goldTransition(runToken);
     N = clamp(N + 1, MIN_N, MAX_N);
     await sleep(BETWEEN_ROUNDS_MS);
@@ -1119,7 +1133,7 @@ game.classList.add("goldGlow");
   async function onFailure() {
     phase = "transition";
     maxNThisSession = Math.max(maxNThisSession, N);
-    setStatus(`‚ĚĆ Wrong order. Adjusting‚Ä¶`);
+    setStatus(`❌ Wrong order. Adjusting…`);
     await goldTransition(runToken);
     N = clamp(N - 1, MIN_N, MAX_N);
     await sleep(BETWEEN_ROUNDS_MS);
@@ -1173,7 +1187,7 @@ game.classList.add("goldGlow");
     maxNThisSession = 2;
     setLevel();
     clearBoard();
-    setStatus("Starting‚Ä¶");
+    setStatus("Starting…");
     sleep(120).then(async () => { await goldTransition(runToken); await runRound(runToken); });
 }
 
