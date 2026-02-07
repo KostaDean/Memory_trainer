@@ -377,19 +377,16 @@
     background: rgba(0,0,0,0.08);
   }
   .bg-swatch.photo::after{ content:"📷"; }
-  .photo-wrap{ position:relative; width:26px; height:26px; flex:0 0 auto; display:inline-block; }
-.photo-wrap .bg-swatch{ position:absolute; inset:0; width:26px; height:26px; z-index:1; }
-.photo-input{
-  position:absolute;
-  inset:0;
-  width:100%;
-  height:100%;
-  z-index:3;
-  opacity:0.015; /* iOS: must be "present" to receive taps */
-  cursor:pointer;
-}
-.photo-input::-webkit-file-upload-button{ -webkit-appearance: none; }
-
+  .photo-wrap{ position:relative; width:26px; height:26px; flex:0 0 auto; }
+  .photo-wrap .bg-swatch{ width:26px; height:26px; }
+  .photo-input{
+    position:absolute;
+    inset:0;
+    width:100%;
+    height:100%;
+    opacity:0;
+    cursor:pointer;
+  }
   .photoBgActive .bg-palette-wrap{ backdrop-filter: blur(2px); }
 
 
@@ -422,6 +419,11 @@
     z-index: 1;
   }
 
+
+
+  .version{font-size:12px;opacity:.75;margin-left:8px;white-space:nowrap;}
+
+  .photo-input{display:none !important;}
 </style>
 </head>
 
@@ -436,6 +438,7 @@
 <button id="endBtn" title="End game and show score">End Game</button>
 
     <div id="level">N = 2</div>
+    <div id="versionBadge" class="version">DEV v32</div>
 
     <div class="bg-palette-wrap" aria-label="Background">
       <span class="bg-label">Background</span>
@@ -914,7 +917,13 @@ function initBackgroundPalette(opts){
     photoInput.className = "photo-input";
     photoInput.setAttribute("aria-label", "Choose photo background");
 
-    photoInput.addEventListener("change", async (e) => {
+    
+    // iOS Safari is more reliable when the file picker is triggered from a real button click.
+    photoInput.style.display = "none";
+    const openPicker = (ev) => { ev && ev.preventDefault(); ev && ev.stopPropagation(); photoInput.click(); };
+    photoBtn.addEventListener("click", openPicker);
+    photoBtn.addEventListener("touchstart", openPicker, {passive:false});
+photoInput.addEventListener("change", async (e) => {
       const file = e.target.files && e.target.files[0];
       if(!file) return;
       try{
