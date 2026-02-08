@@ -377,16 +377,19 @@
     background: rgba(0,0,0,0.08);
   }
   .bg-swatch.photo::after{ content:"📷"; }
-  .photo-wrap{ position:relative; width:26px; height:26px; flex:0 0 auto; }
-  .photo-wrap .bg-swatch{ width:26px; height:26px; }
-  .photo-input{
-    position:absolute;
-    inset:0;
-    width:100%;
-    height:100%;
-    opacity:0;
-    cursor:pointer;
-  }
+  .photo-wrap{ position:relative; width:26px; height:26px; flex:0 0 auto; display:inline-block; }
+.photo-wrap .bg-swatch{ position:absolute; inset:0; width:26px; height:26px; z-index:1; }
+.photo-input{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  z-index:3;
+  opacity:0.015; /* iOS: must be "present" to receive taps */
+  cursor:pointer;
+}
+.photo-input::-webkit-file-upload-button{ -webkit-appearance: none; }
+
   .photoBgActive .bg-palette-wrap{ backdrop-filter: blur(2px); }
 
 
@@ -419,25 +422,6 @@
     z-index: 1;
   }
 
-
-
-  .version{font-size:12px;opacity:.75;margin-left:8px;white-space:nowrap;}
-
-  .photo-input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;}
-
-    .bg-upload{
-      display:inline-flex; align-items:center; justify-content:center;
-      width:44px; height:32px; border-radius:12px;
-      border:1px solid rgba(255,255,255,.18);
-      background:rgba(255,255,255,.06);
-      color:rgba(255,255,255,.92);
-      font-size:18px;
-      user-select:none;
-      -webkit-tap-highlight-color: transparent;
-      cursor:pointer;
-    }
-    .bg-upload:active{ transform: translateY(1px); }
-
 </style>
 </head>
 
@@ -452,7 +436,6 @@
 <button id="endBtn" title="End game and show score">End Game</button>
 
     <div id="level">N = 2</div>
-    <div id="versionBadge" class="version">DEV v32</div>
 
     <div class="bg-palette-wrap" aria-label="Background">
       <span class="bg-label">Background</span>
@@ -931,13 +914,7 @@ function initBackgroundPalette(opts){
     photoInput.className = "photo-input";
     photoInput.setAttribute("aria-label", "Choose photo background");
 
-    
-    // iOS Safari is more reliable when the file picker is triggered from a real button click.
-    photoInput.style.display = "none";
-    const openPicker = (ev) => { ev && ev.preventDefault(); ev && ev.stopPropagation(); photoInput.click(); };
-    photoBtn.addEventListener("click", openPicker);
-    photoBtn.addEventListener("touchstart", openPicker, {passive:false});
-photoInput.addEventListener("change", async (e) => {
+    photoInput.addEventListener("change", async (e) => {
       const file = e.target.files && e.target.files[0];
       if(!file) return;
       try{
@@ -1098,6 +1075,8 @@ game.classList.add("goldGlow");
   async function runRound(token) {
     // Reset misses at the start of each round
     missesUsed = 0;
+    renderMisses();
+
     phase = "transition";
     clearBoard();
     syncLinesViewport();
@@ -1192,6 +1171,8 @@ game.classList.add("goldGlow");
       // Wrong click: allow up to MISS_LIMIT misses per round (do not end immediately)
       playFail();
       missesUsed = Math.min(MISS_LIMIT, missesUsed + 1);
+      renderMisses();
+
       circleObj.el.classList.add("wrong");
       setTimeout(() => circleObj.el?.classList.remove("wrong"), 260);
 
@@ -1295,18 +1276,10 @@ game.classList.add("goldGlow");
 
 })();
 
-  // DEBUG: show a tiny dot when JS has loaded
-  (function(){
-    const d=document.createElement('div');
-    d.style.cssText='position:fixed;right:6px;bottom:6px;width:8px;height:8px;border-radius:999px;background:rgba(0,255,120,.8);z-index:99;';
-    d.title='JS loaded';
-    document.body.appendChild(d);
-    setTimeout(()=>{d.remove();}, 2500);
-  })();
-
+  renderMisses();
 </script>
 
 
-  <input id="bgFileInput" type="file" accept="image/*" style="position:fixed;left:-9999px;top:0;width:1px;height:1px;opacity:0;" />
+  <input id="bgFileInput" type="file" accept="image/*" style="display:none" />
 </body>
 </html>
