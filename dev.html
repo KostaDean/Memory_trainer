@@ -365,8 +365,8 @@
   }
 
 
-  /* Photo background swatch button */
-  .bgSwatch.photo{
+  /* Photo background swatch button (camera) */
+  .bg-swatch.photo{
     display:flex;
     align-items:center;
     justify-content:center;
@@ -374,8 +374,19 @@
     line-height:1;
     border-style:dashed;
     border-width:1px;
+    background: rgba(0,0,0,0.08);
   }
-  .bgSwatch.photo::after{ content:""; }
+  .bg-swatch.photo::after{ content:"📷"; }
+  .photo-wrap{ position:relative; width:26px; height:26px; flex:0 0 auto; }
+  .photo-wrap .bg-swatch{ width:26px; height:26px; }
+  .photo-input{
+    position:absolute;
+    inset:0;
+    width:100%;
+    height:100%;
+    opacity:0;
+    cursor:pointer;
+  }
   .photoBgActive .bg-palette-wrap{ backdrop-filter: blur(2px); }
 
 
@@ -409,19 +420,25 @@
   }
 
 
-  /* Upload icon button */
-  .bgSwatch.upload {
-    display:flex;
-    align-items:center;
-    justify-content:center;
-  }
-  .bgSwatch.upload svg{
-    width:16px; height:16px;
-    fill: currentColor;
-    opacity:0.9;
-  }
-</style>
 
+  .version{font-size:12px;opacity:.75;margin-left:8px;white-space:nowrap;}
+
+  .photo-input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;}
+
+    .bg-upload{
+      display:inline-flex; align-items:center; justify-content:center;
+      width:44px; height:32px; border-radius:12px;
+      border:1px solid rgba(255,255,255,.18);
+      background:rgba(255,255,255,.06);
+      color:rgba(255,255,255,.92);
+      font-size:18px;
+      user-select:none;
+      -webkit-tap-highlight-color: transparent;
+      cursor:pointer;
+    }
+    .bg-upload:active{ transform: translateY(1px); }
+
+</style>
 </head>
 
 <body>
@@ -435,6 +452,7 @@
 <button id="endBtn" title="End game and show score">End Game</button>
 
     <div id="level">N = 2</div>
+    <div id="versionBadge" class="version">DEV v32</div>
 
     <div class="bg-palette-wrap" aria-label="Background">
       <span class="bg-label">Background</span>
@@ -470,7 +488,7 @@
     <div id="arena"></div>
     <svg id="linesLayer" aria-hidden="true"></svg>
 
-    <div id="overlay" role="dialog" aria-modal="true">
+    <div id="overlay" role="dialog" aria-modal="true" style="display:none">
       <div id="panel">
         <h2>Final Score</h2>
         <div id="score">N = 2</div>
@@ -793,6 +811,15 @@ const endBtn = document.getElementById("endBtn");
   const bgFileInput = document.getElementById("bgFileInput");
   let photoBgUrl = null;
 
+  function fileToDataURL(file){
+    return new Promise((resolve, reject)=>{
+      const reader = new FileReader();
+      reader.onerror = () => reject(reader.error || new Error("File read failed"));
+      reader.onload = () => resolve(String(reader.result || ""));
+      reader.readAsDataURL(file);
+    });
+  }
+
   function setPhotoBackground(dataUrl){
     photoBgUrl = dataUrl;
     const panel = document.getElementById("playPanel") || document.body;
@@ -803,6 +830,11 @@ const endBtn = document.getElementById("endBtn");
     document.documentElement.classList.add("photoBgActive");
   }
 
+  function applyPhotoBackgroundFromURL(url){
+    // remote URLs work as CSS backgrounds; note that some sites block hotlinking
+    setPhotoBackground(url);
+  }
+
   function clearPhotoBackground(){
     photoBgUrl = null;
     const panel = document.getElementById("playPanel") || document.body;
@@ -811,8 +843,7 @@ const endBtn = document.getElementById("endBtn");
     document.documentElement.classList.remove("photoBgActive");
   }
 
-  function openPhotoPicker(){
-    try{ bgFileInput && bgFileInput.click(); }catch(e){}
+  function openPhotoPicker(){ /* handled by photo swatch input overlay */ }
   }
 
   if(bgFileInput){
@@ -850,6 +881,8 @@ function initBackgroundPalette(opts){
     }
 
     function setTheme(key){
+      // If a photo background was active, switching themes disables it
+      clearPhotoBackground();
       applyBackgroundTheme(key);
       setSelected(key);
       try{ localStorage.setItem(storageKey, key); }catch(e){}
@@ -879,21 +912,79 @@ function initBackgroundPalette(opts){
     }catch(e){}
     setTheme(initial);
 
-    // Photo swatch at end (opens image picker; long-press clears photo)
-    const photo = document.createElement("button");
-    photo.type = "button";
-    photo.className = "bgSwatch upload";
-    photo.title = "Upload photo background";
-    photo.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20h14v-2H5v2zm7-16l-5 5h3v4h4v-4h3l-5-5z"/></svg>`;
-    photo.setAttribute("role","option");
-    photo.addEventListener("click", () => { openPhotoPicker(); });
+    // Photo swatch at end (tap to pick an image file)
+    // On iOS Safari, programmatic .click() on a hidden file input can be blocked.
+    // So we overlay a real <input type="file"> directly on top of the camera swatch.
+    const photoWrap = document.createElement("span");
+    photoWrap.className = "photo-wrap";
 
-    let pressTimer = null;
-    photo.addEventListener("pointerdown", () => { pressTimer = setTimeout(() => { clearPhotoBackground(); }, 650); });
-    photo.addEventListener("pointerup", () => { if(pressTimer) clearTimeout(pressTimer); pressTimer=null; });
-    photo.addEventListener("pointercancel", () => { if(pressTimer) clearTimeout(pressTimer); pressTimer=null; });
+    const photoBtn = document.createElement("button");
+    photoBtn.type = "button";
+    photoBtn.className = "bg-swatch photo";
+    photoBtn.title = "Use a photo as background";
+    photoBtn.setAttribute("aria-selected", "false");
+    photoBtn.dataset.key = "__photo__";
 
-    container.appendChild(photo);
+    const photoInput = document.createElement("input");
+    photoInput.type = "file";
+    photoInput.accept = "image/*";
+    photoInput.className = "photo-input";
+    photoInput.setAttribute("aria-label", "Choose photo background");
+
+    
+    // iOS Safari is more reliable when the file picker is triggered from a real button click.
+    photoInput.style.display = "none";
+    const openPicker = (ev) => { ev && ev.preventDefault(); ev && ev.stopPropagation(); photoInput.click(); };
+    photoBtn.addEventListener("click", openPicker);
+    photoBtn.addEventListener("touchstart", openPicker, {passive:false});
+photoInput.addEventListener("change", async (e) => {
+      const file = e.target.files && e.target.files[0];
+      if(!file) return;
+      try{
+        const dataUrl = await fileToDataURL(file);
+        setPhotoBackground(dataUrl);
+        // Mark selection
+        [...container.querySelectorAll(".bg-swatch")].forEach(el=>{
+          el.setAttribute("aria-selected", el.dataset.key === "__photo__" ? "true" : "false");
+        });
+      }catch(err){
+        console.warn("Photo load failed", err);
+      }finally{
+        // allow re-selecting same file later
+        photoInput.value = "";
+      }
+    });
+
+    photoWrap.appendChild(photoBtn);
+    photoWrap.appendChild(photoInput);
+    container.appendChild(photoWrap);
+
+    // Fallback: URL background (works even where file picker is blocked, e.g., some in-app browsers or home-screen mode)
+    const urlBtn = document.createElement("button");
+    urlBtn.type = "button";
+    urlBtn.className = "bg-swatch url";
+    urlBtn.title = "Use image URL as background";
+    urlBtn.textContent = "🔗";
+    urlBtn.setAttribute("aria-selected", "false");
+    urlBtn.addEventListener("click", () => {
+      const url = prompt("Paste an image URL (e.g., https://.../photo.jpg).");
+      if(!url) return;
+
+      // Validate lightly
+      const u = url.trim();
+      if(!/^https?:\/\//i.test(u)){
+        alert("That doesn't look like a full URL starting with http(s)://");
+        return;
+      }
+
+      applyPhotoBackgroundFromURL(u);
+      // visually indicate photo mode (use the photo button highlight)
+      activeKey = "__photo__";
+      markSelected("__photo__");
+      try{ localStorage.setItem(storageKey, "__photo__"); }catch(e){}
+    });
+    container.appendChild(urlBtn);
+
 
   return { setTheme };
   }
@@ -1007,8 +1098,6 @@ game.classList.add("goldGlow");
   async function runRound(token) {
     // Reset misses at the start of each round
     missesUsed = 0;
-    renderMisses();
-
     phase = "transition";
     clearBoard();
     syncLinesViewport();
@@ -1103,8 +1192,6 @@ game.classList.add("goldGlow");
       // Wrong click: allow up to MISS_LIMIT misses per round (do not end immediately)
       playFail();
       missesUsed = Math.min(MISS_LIMIT, missesUsed + 1);
-      renderMisses();
-
       circleObj.el.classList.add("wrong");
       setTimeout(() => circleObj.el?.classList.remove("wrong"), 260);
 
@@ -1154,6 +1241,19 @@ game.classList.add("goldGlow");
     try { window.close(); } catch(e) {}
   }
 
+  function showFinalScoreInline(){
+    // Minimal, non-blocking end-of-game message (no modal)
+    try{
+      const msg = document.getElementById("message");
+      if(msg){
+        msg.textContent = `Final score: N = ${bestN}. Tap Play to try again.`;
+      }
+    }catch(e){}
+    // Always hide overlay if it exists
+    const ov = document.getElementById("overlay");
+    if(ov) ov.style.display = "none";
+  }
+
   function endGame(){
     runToken++;
     showFinalScore();
@@ -1195,10 +1295,18 @@ game.classList.add("goldGlow");
 
 })();
 
-  renderMisses();
+  // DEBUG: show a tiny dot when JS has loaded
+  (function(){
+    const d=document.createElement('div');
+    d.style.cssText='position:fixed;right:6px;bottom:6px;width:8px;height:8px;border-radius:999px;background:rgba(0,255,120,.8);z-index:99;';
+    d.title='JS loaded';
+    document.body.appendChild(d);
+    setTimeout(()=>{d.remove();}, 2500);
+  })();
+
 </script>
 
 
-  <input id="bgFileInput" type="file" accept="image/*" style="display:none" />
+  <input id="bgFileInput" type="file" accept="image/*" style="position:fixed;left:-9999px;top:0;width:1px;height:1px;opacity:0;" />
 </body>
 </html>
