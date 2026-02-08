@@ -1,3 +1,6 @@
+<!-- Created by Constantinos Ragazas | Spatial Memory Trainer | build 2026-02-03
+     Donation links: replace placeholders in this file (PAYPAL_ME_PLACEHOLDER, VENMO_PLACEHOLDER).
+-->
 <!doctype html>
 <html lang="en">
 <head>
@@ -41,12 +44,12 @@
   header{
     padding:10px 14px;
     display:flex;
-    flex-direction:column;
-    align-items:stretch;
-    justify-content:flex-start;
+    justify-content:space-between;
+    align-items:center;
     background: rgba(17,26,51,0.88);
     border-bottom: 1px solid rgba(255,255,255,0.10);
-    gap:10px;
+    gap:12px;
+    flex-wrap:wrap;
   }
 
   #status{ color:var(--muted); font-size:14px; }
@@ -236,85 +239,17 @@
     justify-content:flex-end;
   }
 
-  #controls, #rightBar{
-    display:flex;
-    align-items:center;
-    gap:10px;
-    flex-wrap:nowrap;
+  a.donateLink{
+    display:inline-block;
+    padding:7px 12px;
+    border-radius:12px;
+    border:1px solid rgba(255,255,255,0.18);
+    background: rgba(255,255,255,0.10);
+    color:var(--text);
+    text-decoration:none;
+    font-weight:700;
   }
-  #rightBar{ justify-content:space-between; }
-  #bgRowPanel{
-    display:flex;
-    align-items:center;
-    gap:10px;
-    padding:6px 10px;
-    border-radius:14px;
-    background: rgba(255,255,255,0.06);
-    border:1px solid rgba(255,255,255,0.10);
-  }
-
-
-  /* --- Two-panel layout: top panel + play panel --- */
-  header{
-    display:flex;
-    flex-direction:column;
-    gap:10px;
-    padding:10px 14px;
-    background: rgba(17,26,51,0.92);
-    border-bottom: 1px solid rgba(255,255,255,0.10);
-  }
-
-  #bgRowPanel{
-    display:flex;
-    align-items:center;
-    gap:10px;
-  }
-  #bgRowLabel{
-    color:var(--muted);
-    font-size:14px;
-    flex: 0 0 auto;
-  }
-  #bgSwatches{
-    display:flex;
-    gap:10px;
-    align-items:center;
-    flex-wrap:nowrap;
-    overflow-x:auto;
-    -webkit-overflow-scrolling:touch;
-    padding-bottom:2px;
-  }
-  .bgSwatchBtn{
-    appearance:none;
-    -webkit-appearance:none;
-    padding:0;
-    width:34px;
-    height:34px;
-    border-radius:10px;
-    border:1px solid rgba(255,255,255,0.45);
-    box-shadow: 0 6px 14px rgba(0,0,0,0.22);
-    cursor:pointer;
-    position:relative;
-    background: transparent;
-    flex: 0 0 auto;
-  }
-  .bgSwatchBtn:active{ transform: scale(0.98); }
-  .bgSwatchBtn.isOn{
-    border-color: rgba(255,255,255,0.95);
-    box-shadow:
-      0 0 0 2px rgba(255,255,255,0.28),
-      0 6px 14px rgba(0,0,0,0.22);
-  }
-  .bgSwatchBtn.isOn::after{
-    content:"";
-    position:absolute;
-    inset:7px;
-    border-radius:8px;
-    border:2px solid rgba(255,255,255,0.80);
-    pointer-events:none;
-  }
-
-  /* Hide the original dropdown but keep it for stability */
-  #bgSelect{ display:none !important; }
+  a.donateLink:hover{ background: rgba(255,255,255,0.16); }
 
 </style>
 </head>
@@ -339,16 +274,10 @@
     </label>
   </div>
 
-  <div id="rightBar" style="display:flex; gap:10px; align-items:center;">
+  <div style="display:flex; gap:10px; align-items:center;">
     <div id="status">Press Start once. Then it runs continuously.</div>
     <button id="closeBtn" title="Close">✕</button>
   </div>
-
-  <div id="bgRowPanel">
-    <div id="bgRowLabel">Background</div>
-    <div id="bgSwatches"></div>
-  </div>
-
 </header>
 
 <div id="gameWrap">
@@ -364,6 +293,16 @@
           This is the <b>highest N</b> you reached in this session.
           (In Dropbox, you may still need to close the preview tab/window manually.)
         </p>
+        <div style="margin:10px 0 0; padding:12px 12px; border-radius:14px; background: rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.10);">
+          <div style="font-weight:800; margin-bottom:6px;">Support future development (optional)</div>
+          <div style="color:var(--muted); font-size:13px; line-height:1.35;">
+            This game is free. If you&#39;d like to help fund improvements, you can donate here:
+            <div style="margin-top:8px; display:flex; gap:10px; flex-wrap:wrap;">
+              <a class="donateLink" href="https://www.paypal.me/ConstantinosRagazas" target="_blank" rel="noopener">PayPal</a>
+            </div>
+          </div>
+        </div>
+
         <div class="row">
           <button id="restartFromOverlay">Play Again</button>
           <button id="closeFromOverlay">Close</button>
@@ -535,7 +474,7 @@
     if (phase !== "idle") e.preventDefault();
   }, { passive:false });
 
-  const _isInteractive = (t) => !!(t && (t.closest?.(".circle") || t.closest?.(".bgSwatchBtn") || t.closest?.("button") || t.closest?.("select")));
+  const _isInteractive = (t) => !!(t && (t.closest?.(".circle") || t.closest?.("button") || t.closest?.("select")));
 
   document.addEventListener("touchstart", (e) => {
     if (phase !== "idle" && !_isInteractive(e.target)) e.preventDefault();
@@ -564,40 +503,6 @@
 
   bgSelect.addEventListener("change", () => {
     applyBackgroundTheme(bgSelect.value);
-
-  // --- Always-visible background swatches row (uses existing bgSelect handler) ---
-  const bgSwatches = document.getElementById("bgSwatches");
-  const BG_KEYS = ["deepBlue","charcoal","forest","plum","sand"];
-  const BG_SWATCH = {
-    deepBlue:"#1a2a5a",
-    charcoal:"#2a2a2a",
-    forest:"#1b4a3a",
-    plum:"#4a1b4a",
-    sand:"#c9b07a",
-  };
-
-  function renderBgSwatches(){
-    bgSwatches.innerHTML = "";
-    BG_KEYS.forEach((key) => {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "bgSwatchBtn";
-      btn.dataset.bg = key;
-      btn.title = key;
-      const c = BG_SWATCH[key] || "#1a2a5a";
-      btn.style.background = `linear-gradient(135deg, rgba(255,255,255,0.18), rgba(0,0,0,0.18)), ${c}`;
-      btn.addEventListener("click", () => {
-        bgSelect.value = key;
-        bgSelect.dispatchEvent(new Event("change"));
-        [...bgSwatches.children].forEach(el => el.classList.toggle("isOn", el.dataset.bg === key));
-      });
-      bgSwatches.appendChild(btn);
-    });
-    [...bgSwatches.children].forEach(el => el.classList.toggle("isOn", el.dataset.bg === bgSelect.value));
-  }
-
-  renderBgSwatches();
-
   });
   applyBackgroundTheme(bgSelect.value);
 
