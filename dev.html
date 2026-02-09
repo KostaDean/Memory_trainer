@@ -1026,7 +1026,7 @@ game.classList.add("goldGlow");
     setStatus(`Watch the sequence… (${N})`);
 
     circles = nonOverlappingPlacement(N).map((pos, i) => {
-      const color = COLOR_PALETTE[i % COLOR_PALETTE.length];
+      const color = COLOR_PALETTE[Math.floor(Math.random() * COLOR_PALETTE.length)];
       const freq  = NOTE_FREQS[i % NOTE_FREQS.length];
       const wave  = WAVEFORMS[i % WAVEFORMS.length];
       return { ...pos, index:i, color, freq, wave, el:null };
