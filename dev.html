@@ -420,6 +420,10 @@
     fill: currentColor;
     opacity:0.9;
   }
+
+/* Hide photo-upload background option (disabled for now) */
+#bgFileInput, .bgSwatch.photo, .bg-swatch.photo { display:none !important; }
+
 </style>
 
 </head>
@@ -480,7 +484,8 @@
         </p>
         <div class="row">
           <button id="restartFromOverlay">Play Again</button>
-                  </div>
+          <button id="closeFromOverlay">Close</button>
+        </div>
       </div>
     </div>
 
@@ -612,7 +617,9 @@ const endBtn = document.getElementById("endBtn");
   const overlay = document.getElementById("overlay");
   const scoreEl = document.getElementById("score");
   const restartFromOverlay = document.getElementById("restartFromOverlay");
-const linesLayer = document.getElementById("linesLayer");
+  const closeFromOverlay = document.getElementById("closeFromOverlay");
+
+  const linesLayer = document.getElementById("linesLayer");
 
   function clearLines(){
     while (linesLayer.firstChild) linesLayer.removeChild(linesLayer.firstChild);
@@ -979,7 +986,6 @@ game.classList.add("goldGlow");
 
       for (let tries=0; tries<250; tries++) {
         const rShow = rand(SHOW_RADIUS_MIN, SHOW_RADIUS_MAX);
-    const rSafe = Math.max(SHOW_RADIUS_MAX, RECALL_RADIUS) + 8;
         const cx = rand(ar.left + rShow, ar.left + ar.width  - rShow);
         const cy = rand(ar.top  + rShow, ar.top  + ar.height - rShow);
         const candidate = { cx, cy, rShow };
@@ -1005,6 +1011,8 @@ game.classList.add("goldGlow");
   async function runRound(token) {
     // Reset misses at the start of each round
     missesUsed = 0;
+    renderMisses();
+
     phase = "transition";
     clearBoard();
     syncLinesViewport();
@@ -1099,6 +1107,8 @@ game.classList.add("goldGlow");
       // Wrong click: allow up to MISS_LIMIT misses per round (do not end immediately)
       playFail();
       missesUsed = Math.min(MISS_LIMIT, missesUsed + 1);
+      renderMisses();
+
       circleObj.el.classList.add("wrong");
       setTimeout(() => circleObj.el?.classList.remove("wrong"), 260);
 
@@ -1145,10 +1155,13 @@ game.classList.add("goldGlow");
   }
 
   function attemptClose(){
-    try { window.close(); } catch(e) {}
+    // Browsers generally block window.close() for non-script-opened tabs.
+    // Instead, just dismiss the final score panel.
+    overlay.classList.remove('show');
+    panel.classList.remove('show');
   }
 
-  function endGame(){
+function endGame(){
     runToken++;
     showFinalScore();
   }
@@ -1162,7 +1175,10 @@ game.classList.add("goldGlow");
     ensureAudio();
     endGame();
   });
-});
+
+  closeFromOverlay.addEventListener("click", () => {
+    attemptClose();
+  });
 
   restartFromOverlay.addEventListener("click", () => {
     overlay.classList.remove("show");
@@ -1185,6 +1201,8 @@ game.classList.add("goldGlow");
   startBtn.addEventListener("click", () => startGame());
 
 })();
+
+  renderMisses();
 </script>
 
 
