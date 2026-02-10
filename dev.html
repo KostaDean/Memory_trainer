@@ -367,7 +367,7 @@
 
   /* Photo background swatch button */
   .bgSwatch.photo{
-    display:flex;
+    display:none;
     align-items:center;
     justify-content:center;
     font-size:16px;
@@ -460,7 +460,7 @@
   </div>
 
   <div style="display:flex; gap:10px; align-items:center;">
-    <div id="status">Press Start once. Then it runs continuously.</div>
+    <div id="status">Press Play once. Then it runs continuously.</div>
     <button id="closeBtn" title="Close">✕</button>
   </div>
 </header>
@@ -981,7 +981,7 @@ game.classList.add("goldGlow");
       let ok = false;
 
       for (let tries=0; tries<250; tries++) {
-        const rShow = rand(SHOW_RADIUS_MIN, SHOW_RADIUS_MAX);
+        const rShow = Math.max(RECALL_RADIUS, rand(SHOW_RADIUS_MIN, SHOW_RADIUS_MAX));
         const cx = rand(ar.left + rShow, ar.left + ar.width  - rShow);
         const cy = rand(ar.top  + rShow, ar.top  + ar.height - rShow);
         const candidate = { cx, cy, rShow };
@@ -995,7 +995,7 @@ game.classList.add("goldGlow");
       }
 
       if (!ok) {
-        const rShow = rand(SHOW_RADIUS_MIN, SHOW_RADIUS_MAX);
+        const rShow = Math.max(RECALL_RADIUS, rand(SHOW_RADIUS_MIN, SHOW_RADIUS_MAX));
         const cx = rand(ar.left + rShow, ar.left + ar.width  - rShow);
         const cy = rand(ar.top  + rShow, ar.top  + ar.height - rShow);
         placed.push({ cx, cy, rShow });
@@ -1021,11 +1021,18 @@ game.classList.add("goldGlow");
     phase = "showing";
     setStatus(`Watch the sequence… (${N})`);
 
+    // Place circles without overlap and assign randomized colors (sound stays deterministic by index)
+    let prevColor = null;
     circles = nonOverlappingPlacement(N).map((pos, i) => {
-      const color = COLOR_PALETTE[i % COLOR_PALETTE.length];
+      let color = COLOR_PALETTE[Math.floor(Math.random() * COLOR_PALETTE.length)];
+      if (prevColor && color === prevColor) {
+        color = COLOR_PALETTE[(COLOR_PALETTE.indexOf(color) + 1) % COLOR_PALETTE.length];
+      }
+      prevColor = color;
+
       const freq  = NOTE_FREQS[i % NOTE_FREQS.length];
       const wave  = WAVEFORMS[i % WAVEFORMS.length];
-      return { ...pos, index:i, color, freq, wave, el:null };
+      return { ...pos, index:(i+1), color, freq, wave, el:null };
     });
 
     circles.forEach(c => {
@@ -1151,8 +1158,9 @@ game.classList.add("goldGlow");
   }
 
   function attemptClose(){
-    try { window.close(); } catch(e) {}
-  }
+  // Mobile browsers generally block window.close(). Instead, just dismiss overlays/panels.
+  overlay.classList.remove("show");
+}
 
   function endGame(){
     runToken++;
