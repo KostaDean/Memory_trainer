@@ -178,19 +178,32 @@
 
   // NEW: flicker cue before round begins
   async function preRoundCue(token) {
-    // quick flicker (A/B) + small delay
-    for (let i=0; i<FLICKER_COUNT; i++) {
+  // Quick flicker (A/B) + small delay.
+  // Important: always clean up flash classes even if a reset cancels the round.
+  try {
+    for (let i = 0; i < FLICKER_COUNT; i++) {
       if (token !== runToken) return;
+
       game.classList.add("flashA");
       await sleep(FLICKER_STEP_MS);
-      if (token !== runToken) return;
+
+      // If we were cancelled while flashA is on, ensure we turn it off before returning.
       game.classList.remove("flashA");
+      if (token !== runToken) return;
+
       game.classList.add("flashB");
       await sleep(FLICKER_STEP_MS);
+
       game.classList.remove("flashB");
     }
+
+    if (token !== runToken) return;
     await sleep(PRE_ROUND_DELAY_MS);
+  } finally {
+    game.classList.remove("flashA");
+    game.classList.remove("flashB");
   }
+}
 
   // ---------- Game state ----------
   let N = 2;
@@ -367,6 +380,9 @@
     N = 2;
     setLevel();
     clearBoard();
+    // In case a reset happened mid-flicker, force-clear any flash state.
+    game.classList.remove("flashA");
+    game.classList.remove("flashB");
     setStatus("Starting…");
     await sleep(120);
     await runRound(runToken);
