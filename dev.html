@@ -686,8 +686,18 @@ const endBtn = document.getElementById("endBtn");
 
   let audioCtx = null;
   function ensureAudio() {
-    audioCtx ??= new (window.AudioContext || window.webkitAudioContext)();
-    if (audioCtx.state === "suspended") audioCtx.resume();
+    if (!audioCtx) {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      audioCtx = new Ctx();
+      masterGain = audioCtx.createGain();
+      masterGain.gain.value = 0.18;
+      masterGain.connect(audioCtx.destination);
+    }
+    // iOS/Safari often starts AudioContext in "suspended" until a user gesture.
+    if (audioCtx.state === "suspended") {
+      // best-effort; safe to call multiple times
+      audioCtx.resume().catch(()=>{});
+    }
     return audioCtx;
   }
 
@@ -718,6 +728,14 @@ const endBtn = document.getElementById("endBtn");
   const rand  = (a,b) => Math.random()*(b-a)+a;
   const clamp = (v,lo,hi) => Math.max(lo, Math.min(hi, v));
   const dist  = (a,b) => Math.hypot(a.cx-b.cx, a.cy-b.cy);
+
+  const shuffle = (arr) => {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  };
 
   function setStatus(s){ statusEl.textContent = s; }
   function setLevel(){ levelEl.textContent = `N = ${N}`; }
@@ -975,23 +993,71 @@ game.classList.add("goldGlow");
 
   function nonOverlappingPlacement(n) {
     const ar = arenaRectInGameCoords();
+    const extraPad = 12; // gives room for glow/blur so circles *look* separated
     const placed = [];
+    const maxTries = 4000;
 
-    for (let i=0; i<n; i++) {
-      let ok = false;
+    for (let i = 0; i < n; i++) {
+      const rShow = Math.max(RECALL_RADIUS, rand(SHOW_RADIUS_MIN, SHOW_RADIUS_MAX));
+      let cx = rand(ar.left + rShow, ar.right - rShow);
+      let cy = rand(ar.top + rShow, ar.bottom - rShow);
 
-      for (let tries=0; tries<250; tries++) {
-        const rShow = Math.max(RECALL_RADIUS, rand(SHOW_RADIUS_MIN, SHOW_RADIUS_MAX));
-        const cx = rand(ar.left + rShow, ar.left + ar.width  - rShow);
-        const cy = rand(ar.top  + rShow, ar.top  + ar.height - rShow);
-        const candidate = { cx, cy, rShow };
+      for (let t = 0; t < maxTries; t++) {
+        cx = rand(ar.left + rShow, ar.right - rShow);
+        cy = rand(ar.top + rShow, ar.bottom - rShow);
 
-        const tooClose = placed.some(p => dist(candidate, p) < (candidate.rShow + p.rShow + PADDING_BETWEEN));
-        if (!tooClose) {
-          ok = true;
-          placed.push({ cx, cy, rShow });
-          break;
+        let ok = true;
+        for (const p of placed) {
+          const minDist = rShow + p.rShow + PADDING_BETWEEN + extraPad;
+          if (dist(cx, cy, p.cx, p.cy) < minDist) { ok = false; break; }
         }
+        if (ok) break;
+      }
+
+      placed.push({ cx, cy, rShow });
+    }
+
+    // Final pass: nudge apart if anything still overlaps (important for big N / big dots)
+    resolveAllOverlaps(placed, ar, PADDING_BETWEEN + extraPad);
+    return placed;
+  }
+
+  function resolveAllOverlaps(list, ar, pad) {
+    const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+    for (let iter = 0; iter < 500; iter++) {
+      let maxOverlap = 0;
+
+      for (let i = 0; i < list.length; i++) {
+        for (let j = i + 1; j < list.length; j++) {
+          const a = list[i], b = list[j];
+          let dx = a.cx - b.cx;
+          let dy = a.cy - b.cy;
+          let d = Math.hypot(dx, dy);
+
+          const minDist = a.rShow + b.rShow + pad;
+          if (d < minDist) {
+            const overlap = (minDist - d);
+            maxOverlap = Math.max(maxOverlap, overlap);
+
+            if (d < 0.0001) { dx = (Math.random() - 0.5); dy = (Math.random() - 0.5); d = Math.hypot(dx, dy) || 1; }
+            const ux = dx / d, uy = dy / d;
+            const move = overlap / 2 + 0.5;
+
+            a.cx += ux * move; a.cy += uy * move;
+            b.cx -= ux * move; b.cy -= uy * move;
+          }
+        }
+      }
+
+      // keep inside bounds
+      for (const p of list) {
+        p.cx = clamp(p.cx, ar.left + p.rShow, ar.right - p.rShow);
+        p.cy = clamp(p.cy, ar.top + p.rShow, ar.bottom - p.rShow);
+      }
+
+      if (maxOverlap < 0.5) break;
+    }
+  }
       }
 
       if (!ok) {
@@ -1022,13 +1088,14 @@ game.classList.add("goldGlow");
     setStatus(`Watch the sequence… (${N})`);
 
     // Place circles without overlap and assign randomized colors (sound stays deterministic by index)
-    let prevColor = null;
+    let colorBag = shuffle([...COLOR_PALETTE]);
+    let colorIdx = 0;
+    const nextColor = () => {
+      if (colorIdx >= colorBag.length) { colorBag = shuffle([...COLOR_PALETTE]); colorIdx = 0; }
+      return colorBag[colorIdx++];
+    };
     circles = nonOverlappingPlacement(N).map((pos, i) => {
-      let color = COLOR_PALETTE[Math.floor(Math.random() * COLOR_PALETTE.length)];
-      if (prevColor && color === prevColor) {
-        color = COLOR_PALETTE[(COLOR_PALETTE.indexOf(color) + 1) % COLOR_PALETTE.length];
-      }
-      prevColor = color;
+      const color = nextColor();
 
       const freq  = NOTE_FREQS[i % NOTE_FREQS.length];
       const wave  = WAVEFORMS[i % WAVEFORMS.length];
