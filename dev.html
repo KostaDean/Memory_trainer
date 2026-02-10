@@ -420,6 +420,29 @@
     fill: currentColor;
     opacity:0.9;
   }
+
+  #donateBox{
+    margin-top: 14px;
+    padding: 14px;
+    border-radius: 16px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.10);
+  }
+  #donateBox .donateTitle{
+    font-weight: 700;
+    font-size: 18px;
+    margin-bottom: 6px;
+  }
+  #donateBox .donateText{
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.25;
+    margin-bottom: 10px;
+  }
+  #paypalBtn{
+    padding: 10px 18px;
+    border-radius: 999px;
+  }
 </style>
 
 </head>
@@ -460,7 +483,7 @@
   </div>
 
   <div style="display:flex; gap:10px; align-items:center;">
-    <div id="status">Press Start once. Then it runs continuously.</div>
+    <div id="status">Press Play once. Then it runs continuously.</div>
     <button id="closeBtn" title="Close">✕</button>
   </div>
 </header>
@@ -478,6 +501,13 @@
           This is the <b>highest N</b> you reached in this session.
           (In Dropbox, you may still need to close the preview tab/window manually.)
         </p>
+
+        <div id="donateBox">
+          <div class="donateTitle">Support future development (optional)</div>
+          <div class="donateText">This game is free. If you'd like to help fund improvements, you can donate here:</div>
+          <button id="paypalBtn" type="button">PayPal</button>
+        </div>
+
         <div class="row">
           <button id="restartFromOverlay">Play Again</button>
           <button id="closeFromOverlay">Close</button>
@@ -612,7 +642,8 @@ const endBtn = document.getElementById("endBtn");
 
   const overlay = document.getElementById("overlay");
   const scoreEl = document.getElementById("score");
-  const restartFromOverlay = document.getElementById("restartFromOverlay");
+    const paypalBtn = document.getElementById("paypalBtn");
+const restartFromOverlay = document.getElementById("restartFromOverlay");
   const closeFromOverlay = document.getElementById("closeFromOverlay");
 
   const linesLayer = document.getElementById("linesLayer");
@@ -718,6 +749,14 @@ const endBtn = document.getElementById("endBtn");
   const rand  = (a,b) => Math.random()*(b-a)+a;
   const clamp = (v,lo,hi) => Math.max(lo, Math.min(hi, v));
   const dist  = (a,b) => Math.hypot(a.cx-b.cx, a.cy-b.cy);
+  function shuffleInPlace(a){
+    for(let i=a.length-1;i>0;i--){
+      const j = Math.floor(Math.random()*(i+1));
+      [a[i],a[j]] = [a[j],a[i]];
+    }
+    return a;
+  }
+
 
   function setStatus(s){ statusEl.textContent = s; }
   function setLevel(){ levelEl.textContent = `N = ${N}`; }
@@ -973,26 +1012,65 @@ game.classList.add("goldGlow");
     c.el.style.top    = `${c.cy - r}px`;
   }
 
-  function nonOverlappingPlacement(n) {
-    const ar = arenaRectInGameCoords();
-    const placed = [];
+  function nonOverlappingPlacement(n){
+      const w = arenaRect.width;
+      const h = arenaRect.height;
 
-    for (let i=0; i<n; i++) {
-      let ok = false;
+      // We place using an "effective radius" that includes padding, so circles never overlap.
+      let baseR = rShow + pad;
+      let attemptR = baseR;
 
-      for (let tries=0; tries<250; tries++) {
-        const rShow = rand(SHOW_RADIUS_MIN, SHOW_RADIUS_MAX);
-        const cx = rand(ar.left + rShow, ar.left + ar.width  - rShow);
-        const cy = rand(ar.top  + rShow, ar.top  + ar.height - rShow);
-        const candidate = { cx, cy, rShow };
+      // Try a few passes, shrinking the effective radius slightly if N is large.
+      for(let pass=0; pass<12; pass++){
+        const pts = [];
+        let ok = true;
 
-        const tooClose = placed.some(p => dist(candidate, p) < (candidate.rShow + p.rShow + PADDING_BETWEEN));
-        if (!tooClose) {
-          ok = true;
-          placed.push({ cx, cy, rShow });
-          break;
+        for(let i=0;i<n;i++){
+          let placed = false;
+
+          for(let t=0;t<2200;t++){
+            const cx = rand(attemptR, w - attemptR);
+            const cy = rand(attemptR, h - attemptR);
+
+            let good = true;
+            for(const p of pts){
+              if(dist(cx, cy, p.cx, p.cy) < (attemptR * 2)){
+                good = false; break;
+              }
+            }
+            if(good){
+              pts.push({cx, cy});
+              placed = true;
+              break;
+            }
+          }
+
+          if(!placed){
+            ok = false;
+            break;
+          }
         }
+
+        if(ok) return pts;
+
+        // shrink a bit and try again
+        attemptR = Math.max(12, attemptR * 0.92);
       }
+
+      // Absolute fallback: deterministic grid (still non-overlapping)
+      const pts = [];
+      const cols = Math.ceil(Math.sqrt(n));
+      const rows = Math.ceil(n / cols);
+      const cellW = w / cols;
+      const cellH = h / rows;
+
+      for(let i=0;i<n;i++){
+        const col = i % cols;
+        const row = Math.floor(i / cols);
+        pts.push({cx: (col + 0.5) * cellW, cy: (row + 0.5) * cellH});
+      }
+      return pts;
+    }}
 
       if (!ok) {
         const rShow = rand(SHOW_RADIUS_MIN, SHOW_RADIUS_MAX);
@@ -1021,8 +1099,10 @@ game.classList.add("goldGlow");
     phase = "showing";
     setStatus(`Watch the sequence… (${N})`);
 
+    const shuffledColors = shuffleInPlace(COLOR_PALETTE.slice());
+
     circles = nonOverlappingPlacement(N).map((pos, i) => {
-      const color = COLOR_PALETTE[i % COLOR_PALETTE.length];
+      const color = shuffledColors[i % shuffledColors.length];
       const freq  = NOTE_FREQS[i % NOTE_FREQS.length];
       const wave  = WAVEFORMS[i % WAVEFORMS.length];
       return { ...pos, index:i, color, freq, wave, el:null };
@@ -1175,11 +1255,15 @@ game.classList.add("goldGlow");
 
   restartFromOverlay.addEventListener("click", () => {
     overlay.classList.remove("show");
+  if(paypalBtn){ paypalBtn.addEventListener("click", () => { window.open("https://www.paypal.me/ConstantinosRagazas", "_blank"); }); }
     startGame();
   });
 
   function startGame(){
-    ensureAudio();
+    
+    // Always close final score overlay when starting a new run
+    overlay.classList.remove("show");
+ensureAudio();
     lockViewport();
     runToken++;
     phase = "idle";
