@@ -1,6 +1,3 @@
-<!-- Created by Constantinos Ragazas | Spatial Memory Trainer | build 2026-02-03
-     Donation links: replace placeholders in this file (PAYPAL_ME_PLACEHOLDER, VENMO_PLACEHOLDER).
--->
 <!doctype html>
 <html lang="en">
 <head>
@@ -239,43 +236,235 @@
     justify-content:flex-end;
   }
 
-  a.donateLink{
-    display:inline-block;
-    padding:7px 12px;
-    border-radius:12px;
-    border:1px solid rgba(255,255,255,0.18);
-    background: rgba(255,255,255,0.10);
-    color:var(--text);
-    text-decoration:none;
+  /* --- v15: Primary Play button --- */
+  button.primary{
+    padding:10px 18px;
+    font-size:16px;
     font-weight:700;
+    letter-spacing:0.2px;
+    border:1px solid rgba(255,255,255,0.28);
+    background: rgba(255,255,255,0.12);
+    box-shadow: 0 0 18px rgba(255,215,128,0.18);
+    position:relative;
   }
-  a.donateLink:hover{ background: rgba(255,255,255,0.16); }
+  @keyframes softPulse{
+    0%,100%{ box-shadow: 0 0 18px rgba(255,215,128,0.16); }
+    50%{ box-shadow: 0 0 26px rgba(255,215,128,0.24); }
+  }
+  button.primary:not(:disabled){
+    animation: softPulse 2.6s ease-in-out infinite;
+  }
+
+  /* --- v15: Background swatch strip --- */
+  .bg-palette-wrap{
+    display:flex;
+    gap:10px;
+    align-items:center;
+    flex-wrap:wrap;
+  }
+  .bg-label{
+    color:var(--muted);
+    font-size:14px;
+  }
+  .bg-palette{
+    display:flex;
+    gap:8px;
+    align-items:center;
+    padding:4px 6px;
+    border-radius:12px;
+    border:1px solid rgba(255,255,255,0.12);
+    background: rgba(255,255,255,0.06);
+    max-width:min(420px, 74vw);
+    overflow-x:auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .bg-swatch{
+    width:26px;
+    height:26px;
+    border-radius:10px;
+    border:1px solid rgba(255,255,255,0.22);
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,0.18);
+    flex:0 0 auto;
+    cursor:pointer;
+    position:relative;
+  }
+  .bg-swatch[aria-selected="true"]{
+    outline:2px solid rgba(255,255,255,0.85);
+    outline-offset:2px;
+  }
+
+
+  /* --- v19: Tuning controls (Timing + Size) --- */
+  .tune-wrap{
+    display:flex;
+    gap:10px;
+    align-items:center;
+    flex-wrap:wrap;
+  }
+  .tune{
+    display:flex;
+    gap:8px;
+    align-items:center;
+    padding:4px 6px;
+    border-radius:12px;
+    border:1px solid rgba(255,255,255,0.12);
+    background: rgba(255,255,255,0.06);
+  }
+  .tune-label{
+    color:var(--muted);
+    font-size:14px;
+    margin-right:2px;
+  }
+  .tune-btn{
+    width:30px;
+    height:30px;
+    border-radius:10px;
+    border:1px solid rgba(255,255,255,0.18);
+    background: rgba(0,0,0,0.10);
+    color:var(--text);
+    font-weight:700;
+    line-height:1;
+  }
+  .tune-btn:active{ transform: scale(0.98); }
+  .dots{
+    display:flex;
+    gap:4px;
+    align-items:center;
+    padding:0 2px;
+  }
+  .dot{
+    width:7px;
+    height:7px;
+    border-radius:50%;
+    background: rgba(255,255,255,0.18);
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,0.25);
+  }
+  .dot.on{ background: rgba(255,255,255,0.80); }
+
+
+  /* --- Miss allowance (3 dots) --- */
+  .missBar{
+    display:flex;
+    gap:6px;
+    align-items:center;
+    padding:6px 10px;
+    border-radius:14px;
+    border:1px solid rgba(255,255,255,0.14);
+    background: rgba(255,255,255,0.06);
+  }
+  .missDot{
+    width:10px; height:10px;
+    border-radius:50%;
+    background: rgba(255,255,255,0.85);
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.18) inset;
+    opacity: 0.95;
+  }
+  .missDot.used{
+    background: rgba(255,120,120,0.75);
+    opacity: 0.55;
+  }
+
+
+  /* Photo background swatch button */
+  .bgSwatch.photo{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:16px;
+    line-height:1;
+    border-style:dashed;
+    border-width:1px;
+  }
+  .bgSwatch.photo::after{ content:""; }
+  .photoBgActive .bg-palette-wrap{ backdrop-filter: blur(2px); }
+
+
+  /* Photo background: avoid cropping faces by using CONTAIN.
+     Add a soft blurred "fill" behind so letterboxing looks good. */
+  #playPanel.photoBgActive{
+    position: relative;
+    overflow: hidden;
+    background-image: var(--photoUrl);
+    background-size: contain;
+    background-position: center center;
+    background-repeat: no-repeat;
+  }
+  #playPanel.photoBgActive::before{
+    content:"";
+    position:absolute;
+    inset:0;
+    background-image: var(--photoUrl);
+    background-size: cover;         /* fill behind (may crop, but blurred) */
+    background-position: center center;
+    background-repeat: no-repeat;
+    filter: blur(18px) brightness(0.85);
+    transform: scale(1.08);
+    opacity: 0.85;
+    z-index: 0;
+    pointer-events:none;
+  }
+  #playPanel.photoBgActive > *{
+    position: relative;
+    z-index: 1;
+  }
+
+
+  /* Upload icon button */
+  .bgSwatch.upload {
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .bgSwatch.upload svg{
+    width:16px; height:16px;
+    fill: currentColor;
+    opacity:0.9;
+  }
+
+/* Hide photo-upload background option (disabled for now) */
+#bgFileInput, .bgSwatch.photo, .bg-swatch.photo { display:none !important; }
 
 </style>
+
 </head>
 
 <body>
 <header>
   <div id="controls">
-    <button id="startBtn">Start / Reset</button>
-    <button id="endBtn" title="End game and show score">End Game</button>
+    <button id="startBtn" class="primary">Play</button>
+    
+    <div id="missBar" class="missBar" title="Mistakes allowed (resets each round)">
+      <span class="missDot"></span><span class="missDot"></span><span class="missDot"></span>
+    </div>
+<button id="endBtn" title="End game and show score">End Game</button>
 
     <div id="level">N = 2</div>
 
-    <label style="display:flex; gap:8px; align-items:center;">
-      <span style="color:var(--muted); font-size:14px;">Background</span>
-      <select id="bgSelect" title="Choose background">
-        <option value="deepBlue" selected>Deep Blue</option>
-        <option value="charcoal">Charcoal</option>
-        <option value="forest">Forest</option>
-        <option value="plum">Plum</option>
-        <option value="sand">Sand</option>
-      </select>
-    </label>
+    <div class="bg-palette-wrap" aria-label="Background">
+      <span class="bg-label">Background</span>
+      <div id="bgPalette" class="bg-palette" role="listbox" aria-label="Background colors"></div>
+    </div>
+
+    <div class="tune-wrap" aria-label="Training tuning">
+      <div class="tune" role="group" aria-label="Timing">
+        <span class="tune-label">Timing</span>
+        <button class="tune-btn" id="paceMinus" aria-label="Timing down">−</button>
+        <div class="dots" id="paceDots" aria-hidden="true"></div>
+        <button class="tune-btn" id="pacePlus" aria-label="Timing up">+</button>
+      </div>
+
+      <div class="tune" role="group" aria-label="Circle size">
+        <span class="tune-label">Size</span>
+        <button class="tune-btn" id="sizeMinus" aria-label="Size down">−</button>
+        <div class="dots" id="sizeDots" aria-hidden="true"></div>
+        <button class="tune-btn" id="sizePlus" aria-label="Size up">+</button>
+      </div>
+    </div>
+
   </div>
 
   <div style="display:flex; gap:10px; align-items:center;">
-    <div id="status">Press Start once. Then it runs continuously.</div>
+    <div id="status">Press Play once. Then it runs continuously.</div>
     <button id="closeBtn" title="Close">✕</button>
   </div>
 </header>
@@ -293,16 +482,6 @@
           This is the <b>highest N</b> you reached in this session.
           (In Dropbox, you may still need to close the preview tab/window manually.)
         </p>
-        <div style="margin:10px 0 0; padding:12px 12px; border-radius:14px; background: rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.10);">
-          <div style="font-weight:800; margin-bottom:6px;">Support future development (optional)</div>
-          <div style="color:var(--muted); font-size:13px; line-height:1.35;">
-            This game is free. If you&#39;d like to help fund improvements, you can donate here:
-            <div style="margin-top:8px; display:flex; gap:10px; flex-wrap:wrap;">
-              <a class="donateLink" href="https://www.paypal.me/ConstantinosRagazas" target="_blank" rel="noopener">PayPal</a>
-            </div>
-          </div>
-        </div>
-
         <div class="row">
           <button id="restartFromOverlay">Play Again</button>
           <button id="closeFromOverlay">Close</button>
@@ -318,12 +497,122 @@
   const game   = document.getElementById("game");
   const arena  = document.getElementById("arena");
   const startBtn = document.getElementById("startBtn");
-  const endBtn = document.getElementById("endBtn");
+  
+
+  // ---- Forgiving misses (kid-friendly) ----
+  const MISS_LIMIT = 3;     // per round
+  let missesUsed = 0;
+  const missBar = document.getElementById("missBar");
+  function renderMisses(){
+    if(!missBar) return;
+    const dots = [...missBar.querySelectorAll(".missDot")];
+    dots.forEach((d,i)=> d.classList.toggle("used", i < missesUsed));
+  }
+
+  function playFail(){
+    // distinct fail sound (short descending buzz), safe if audio blocked
+    try{
+      if(!audioCtx) return;
+      const t0 = audioCtx.currentTime;
+      const o = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      o.type = "sawtooth";
+      o.frequency.setValueAtTime(240, t0);
+      o.frequency.exponentialRampToValueAtTime(120, t0 + 0.18);
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.exponentialRampToValueAtTime(0.20, t0 + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.22);
+      o.connect(g); g.connect(audioCtx.destination);
+      o.start(t0); o.stop(t0 + 0.24);
+    }catch(e){}
+  }
+
+  function playShimmerMelody(){
+    // Brief, pleasant 3-note sparkle to accompany the gold shimmer cue.
+    // Safe if audio is blocked; uses the existing AudioContext.
+    try{
+      const ctx = ensureAudio();
+      const now = ctx.currentTime;
+
+      const notes = [659.25, 783.99, 987.77]; // E5, G5, B5
+      const dur = 0.11;
+      const gap = 0.03;
+
+      notes.forEach((f, i) => {
+        const t0 = now + i*(dur+gap);
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.type = "triangle";
+        o.frequency.setValueAtTime(f, t0);
+
+        g.gain.setValueAtTime(0.0001, t0);
+        g.gain.exponentialRampToValueAtTime(0.18, t0 + 0.015);
+        g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+
+        o.connect(g); g.connect(ctx.destination);
+        o.start(t0);
+        o.stop(t0 + dur + 0.02);
+      });
+    }catch(e){}
+  }
+
+const endBtn = document.getElementById("endBtn");
   const closeBtn = document.getElementById("closeBtn");
   const statusEl = document.getElementById("status");
   const levelEl  = document.getElementById("level");
 
-  const bgSelect = document.getElementById("bgSelect");
+  // --- v19: Tuning module (no numbers; dot preview) ---
+  const paceMinus = document.getElementById("paceMinus");
+  const pacePlus  = document.getElementById("pacePlus");
+  const sizeMinus = document.getElementById("sizeMinus");
+  const sizePlus  = document.getElementById("sizePlus");
+  const paceDots  = document.getElementById("paceDots");
+  const sizeDots  = document.getElementById("sizeDots");
+
+  // Levels 1..5 (3 is default)
+  let paceLevel = 3;
+  let sizeLevel = 3;
+
+  function makeDots(el){
+    if(!el) return;
+    el.innerHTML = "";
+    for(let i=0;i<5;i++){
+      const d=document.createElement("div");
+      d.className="dot";
+      el.appendChild(d);
+    }
+  }
+  makeDots(paceDots);
+  makeDots(sizeDots);
+
+  function setDots(el, level){
+    if(!el) return;
+    const kids=[...el.children];
+    kids.forEach((d,i)=> d.classList.toggle("on", i < level));
+  }
+
+  function applyPace(){
+    // paceLevel 1 fastest -> 5 slowest
+    // More noticeable multipliers: 0.60, 0.80, 1.00, 1.35, 1.75
+    const mult = [0.60, 0.80, 1.00, 1.35, 1.75][paceLevel-1];
+    SHOW_MS = Math.round(700 * mult);
+    GAP_MS  = Math.round(300 * mult);
+    setDots(paceDots, paceLevel);
+  }
+
+  function applySize(){
+    // sizeLevel 1 small -> 5 large
+    RECALL_RADIUS = [16, 20, 24, 30, 36][sizeLevel-1];
+    setDots(sizeDots, sizeLevel);
+  }
+
+  function initTuning(){
+    applyPace(); applySize();
+    if(paceMinus) paceMinus.addEventListener("click", ()=>{ paceLevel=Math.max(1, paceLevel-1); applyPace(); });
+    if(pacePlus)  pacePlus .addEventListener("click", ()=>{ paceLevel=Math.min(5, paceLevel+1); applyPace(); });
+    if(sizeMinus) sizeMinus.addEventListener("click", ()=>{ sizeLevel=Math.max(1, sizeLevel-1); applySize(); });
+    if(sizePlus)  sizePlus .addEventListener("click", ()=>{ sizeLevel=Math.min(5, sizeLevel+1); applySize(); });
+  }
 
   const overlay = document.getElementById("overlay");
   const scoreEl = document.getElementById("score");
@@ -360,13 +649,13 @@
   const MIN_N = 2;
   const MAX_N = 30;
 
-  const SHOW_MS = 650;
-  const GAP_MS  = 250;
+  let SHOW_MS = 650;
+  let GAP_MS  = 250;
 
   const SHOW_RADIUS_MIN = 34;
   const SHOW_RADIUS_MAX = 54;
 
-  const RECALL_RADIUS   = 22;    // fixed small size for recall
+  let RECALL_RADIUS   = 22;    // adjustable size for recall
   const PADDING_BETWEEN = 12;    // non-overlap margin
 
   const BETWEEN_ROUNDS_MS = 900; // pause after success/fail
@@ -484,16 +773,17 @@
     if (phase !== "idle" && !_isInteractive(e.target)) e.preventDefault();
   }, { passive:false });
 
-  // ---------- Background dropdown ----------
+  // ---------- Background palette (modular) ----------
+  const BACKGROUND_THEMES = {
+    deepBlue: { name:"Deep Blue", swatch:"#1a2a5a", bgA:"#1a2a5a", bgB:"#0b1020", gameA:"rgba(16,26,53,0.78)", gameB:"rgba(16,26,53,0.78)" },
+    charcoal:{ name:"Charcoal", swatch:"#2a2a2a", bgA:"#2a2a2a", bgB:"#0b0b0b", gameA:"rgba(28,28,28,0.82)", gameB:"rgba(18,18,18,0.82)" },
+    forest:  { name:"Forest",   swatch:"#1b4a3a", bgA:"#1b4a3a", bgB:"#07120e", gameA:"rgba(12,34,26,0.82)", gameB:"rgba(12,34,26,0.82)" },
+    plum:    { name:"Plum",     swatch:"#4a1b4a", bgA:"#4a1b4a", bgB:"#0f0610", gameA:"rgba(34,12,35,0.82)", gameB:"rgba(34,12,35,0.82)" },
+    sand:    { name:"Sand",     swatch:"#c9b07a", bgA:"#c9b07a", bgB:"#2c2416", gameA:"rgba(44,36,22,0.78)", gameB:"rgba(44,36,22,0.78)" },
+  };
+
   function applyBackgroundTheme(key){
-    const themes = {
-      deepBlue: { bgA:"#1a2a5a", bgB:"#0b1020", gameA:"rgba(16,26,53,0.78)", gameB:"rgba(16,26,53,0.78)" },
-      charcoal:{ bgA:"#2a2a2a", bgB:"#0b0b0b", gameA:"rgba(28,28,28,0.82)", gameB:"rgba(18,18,18,0.82)" },
-      forest:  { bgA:"#1b4a3a", bgB:"#07120e", gameA:"rgba(12,34,26,0.82)", gameB:"rgba(12,34,26,0.82)" },
-      plum:    { bgA:"#4a1b4a", bgB:"#0f0610", gameA:"rgba(34,12,35,0.82)", gameB:"rgba(34,12,35,0.82)" },
-      sand:    { bgA:"#c9b07a", bgB:"#2c2416", gameA:"rgba(44,36,22,0.78)", gameB:"rgba(44,36,22,0.78)" },
-    };
-    const t = themes[key] || themes.deepBlue;
+    const t = BACKGROUND_THEMES[key] || BACKGROUND_THEMES.deepBlue;
     const r = document.documentElement.style;
     r.setProperty("--bgA", t.bgA);
     r.setProperty("--bgB", t.bgB);
@@ -501,16 +791,127 @@
     r.setProperty("--gameB", t.gameB);
   }
 
-  bgSelect.addEventListener("change", () => {
-    applyBackgroundTheme(bgSelect.value);
-  });
-  applyBackgroundTheme(bgSelect.value);
+  // Module: renders swatches and manages selection state
+  
+  // ---- Photo background (local file; never uploaded) ----
+  const bgFileInput = document.getElementById("bgFileInput");
+  let photoBgUrl = null;
+
+  function setPhotoBackground(dataUrl){
+    photoBgUrl = dataUrl;
+    const panel = document.getElementById("playPanel") || document.body;
+
+    // Use CSS variable so both the sharp (contain) layer and blurred (cover) layer share the same image
+    panel.style.setProperty("--photoUrl", `url(${dataUrl})`);
+    panel.classList.add("photoBgActive");
+    document.documentElement.classList.add("photoBgActive");
+  }
+
+  function clearPhotoBackground(){
+    photoBgUrl = null;
+    const panel = document.getElementById("playPanel") || document.body;
+    panel.style.removeProperty("--photoUrl");
+    panel.classList.remove("photoBgActive");
+    document.documentElement.classList.remove("photoBgActive");
+  }
+
+  function openPhotoPicker(){
+    try{ bgFileInput && bgFileInput.click(); }catch(e){}
+  }
+
+  if(bgFileInput){
+    bgFileInput.addEventListener("change", (e) => {
+      const file = e.target.files && e.target.files[0];
+      if(!file) return;
+      if(!file.type || !file.type.startsWith("image/")) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        if(typeof reader.result === "string") setPhotoBackground(reader.result);
+      };
+      reader.readAsDataURL(file);
+      bgFileInput.value = "";
+    });
+  }
+
+
+function initBackgroundPalette(opts){
+    const {
+      containerId = "bgPalette",
+      defaultKey = "deepBlue",
+      storageKey = "smt_bg_theme",
+      onChange = () => {}
+    } = (opts || {});
+
+    const container = document.getElementById(containerId);
+    if(!container) return { setTheme: applyBackgroundTheme };
+
+    const keys = Object.keys(BACKGROUND_THEMES);
+
+    function setSelected(key){
+      [...container.querySelectorAll(".bg-swatch")].forEach(el=>{
+        el.setAttribute("aria-selected", el.dataset.key === key ? "true" : "false");
+      });
+    }
+
+    function setTheme(key){
+      applyBackgroundTheme(key);
+      setSelected(key);
+      try{ localStorage.setItem(storageKey, key); }catch(e){}
+      onChange(key);
+    }
+
+    // render
+    container.innerHTML = "";
+    keys.forEach((key)=>{
+      const t = BACKGROUND_THEMES[key];
+      const sw = document.createElement("button");
+      sw.type = "button";
+      sw.className = "bg-swatch";
+      sw.title = t.name;
+      sw.setAttribute("aria-selected", "false");
+      sw.dataset.key = key;
+      sw.style.background = t.swatch;
+      sw.addEventListener("click", ()=> setTheme(key));
+      container.appendChild(sw);
+    });
+
+    // initial selection (restore if possible)
+    let initial = defaultKey;
+    try{
+      const saved = localStorage.getItem(storageKey);
+      if(saved && BACKGROUND_THEMES[saved]) initial = saved;
+    }catch(e){}
+    setTheme(initial);
+
+    // Photo swatch at end (opens image picker; long-press clears photo)
+    const photo = document.createElement("button");
+    photo.type = "button";
+    photo.className = "bgSwatch upload";
+    photo.title = "Upload photo background";
+    photo.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20h14v-2H5v2zm7-16l-5 5h3v4h4v-4h3l-5-5z"/></svg>`;
+    photo.setAttribute("role","option");
+    photo.addEventListener("click", () => { openPhotoPicker(); });
+
+    let pressTimer = null;
+    photo.addEventListener("pointerdown", () => { pressTimer = setTimeout(() => { clearPhotoBackground(); }, 650); });
+    photo.addEventListener("pointerup", () => { if(pressTimer) clearTimeout(pressTimer); pressTimer=null; });
+    photo.addEventListener("pointercancel", () => { if(pressTimer) clearTimeout(pressTimer); pressTimer=null; });
+
+    container.appendChild(photo);
+
+  return { setTheme };
+  }
+
+  initBackgroundPalette({ defaultKey: "deepBlue" });
+  initTuning();
 
   // ---------- Gold transition ----------
   async function goldTransition(token){
     // Calm between-round cue: brief warm glow without flicker.
     if (token !== runToken) return;
-    game.classList.add("goldGlow");
+    
+    playShimmerMelody();
+game.classList.add("goldGlow");
     game.classList.add("goldB");
     await sleep(260);
     game.classList.remove("goldB");
@@ -608,6 +1009,10 @@
   }
 
   async function runRound(token) {
+    // Reset misses at the start of each round
+    missesUsed = 0;
+    renderMisses();
+
     phase = "transition";
     clearBoard();
     syncLinesViewport();
@@ -699,10 +1104,22 @@
       if (expectedIndex >= N) onSuccess();
       else setStatus(`Good! Next: ${expectedIndex + 1} of ${N}.`);
     } else {
-      playToneForIndex(0, 180);
+      // Wrong click: allow up to MISS_LIMIT misses per round (do not end immediately)
+      playFail();
+      missesUsed = Math.min(MISS_LIMIT, missesUsed + 1);
+      renderMisses();
+
       circleObj.el.classList.add("wrong");
       setTimeout(() => circleObj.el?.classList.remove("wrong"), 260);
-      onFailure();
+
+      const remaining = MISS_LIMIT - missesUsed;
+      if (remaining > 0) {
+        setStatus(`Almost! Try again — ${remaining} miss${remaining===1?"":"es"} left this round.`);
+        return; // keep playing this round
+      } else {
+        setStatus(`Out of chances this round.`);
+        onFailure();
+      }
     }
   }
 
@@ -738,10 +1155,13 @@
   }
 
   function attemptClose(){
-    try { window.close(); } catch(e) {}
+    // Browsers generally block window.close() for non-script-opened tabs.
+    // Instead, just dismiss the final score panel.
+    overlay.classList.remove('show');
+    panel.classList.remove('show');
   }
 
-  function endGame(){
+function endGame(){
     runToken++;
     showFinalScore();
   }
@@ -768,8 +1188,6 @@
   function startGame(){
     ensureAudio();
     lockViewport();
-    // Always dismiss the final-score overlay when starting a new run
-    overlay.classList.remove("show");
     runToken++;
     phase = "idle";
     N = 2;
@@ -777,13 +1195,17 @@
     setLevel();
     clearBoard();
     setStatus("Starting…");
-    sleep(120).then(() => runRound(runToken));
-  }
+    sleep(120).then(async () => { await goldTransition(runToken); await runRound(runToken); });
+}
 
   startBtn.addEventListener("click", () => startGame());
 
 })();
+
+  renderMisses();
 </script>
 
+
+  <input id="bgFileInput" type="file" accept="image/*" style="display:none" />
 </body>
 </html>
