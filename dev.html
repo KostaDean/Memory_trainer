@@ -419,6 +419,11 @@
     z-index: 1;
   }
 
+
+
+  .version{font-size:12px;opacity:.75;margin-left:8px;white-space:nowrap;}
+
+  .photo-input{display:none !important;}
 </style>
 </head>
 
@@ -433,6 +438,7 @@
 <button id="endBtn" title="End game and show score">End Game</button>
 
     <div id="level">N = 2</div>
+    <div id="versionBadge" class="version">DEV v32</div>
 
     <div class="bg-palette-wrap" aria-label="Background">
       <span class="bg-label">Background</span>
@@ -810,6 +816,11 @@ const endBtn = document.getElementById("endBtn");
     document.documentElement.classList.add("photoBgActive");
   }
 
+  function applyPhotoBackgroundFromURL(url){
+    // remote URLs work as CSS backgrounds; note that some sites block hotlinking
+    setPhotoBackground(url);
+  }
+
   function clearPhotoBackground(){
     photoBgUrl = null;
     const panel = document.getElementById("playPanel") || document.body;
@@ -906,7 +917,13 @@ function initBackgroundPalette(opts){
     photoInput.className = "photo-input";
     photoInput.setAttribute("aria-label", "Choose photo background");
 
-    photoInput.addEventListener("change", async (e) => {
+    
+    // iOS Safari is more reliable when the file picker is triggered from a real button click.
+    photoInput.style.display = "none";
+    const openPicker = (ev) => { ev && ev.preventDefault(); ev && ev.stopPropagation(); photoInput.click(); };
+    photoBtn.addEventListener("click", openPicker);
+    photoBtn.addEventListener("touchstart", openPicker, {passive:false});
+photoInput.addEventListener("change", async (e) => {
       const file = e.target.files && e.target.files[0];
       if(!file) return;
       try{
@@ -927,6 +944,33 @@ function initBackgroundPalette(opts){
     photoWrap.appendChild(photoBtn);
     photoWrap.appendChild(photoInput);
     container.appendChild(photoWrap);
+
+    // Fallback: URL background (works even where file picker is blocked, e.g., some in-app browsers or home-screen mode)
+    const urlBtn = document.createElement("button");
+    urlBtn.type = "button";
+    urlBtn.className = "bg-swatch url";
+    urlBtn.title = "Use image URL as background";
+    urlBtn.textContent = "🔗";
+    urlBtn.setAttribute("aria-selected", "false");
+    urlBtn.addEventListener("click", () => {
+      const url = prompt("Paste an image URL (e.g., https://.../photo.jpg).");
+      if(!url) return;
+
+      // Validate lightly
+      const u = url.trim();
+      if(!/^https?:\/\//i.test(u)){
+        alert("That doesn't look like a full URL starting with http(s)://");
+        return;
+      }
+
+      applyPhotoBackgroundFromURL(u);
+      // visually indicate photo mode (use the photo button highlight)
+      activeKey = "__photo__";
+      markSelected("__photo__");
+      try{ localStorage.setItem(storageKey, "__photo__"); }catch(e){}
+    });
+    container.appendChild(urlBtn);
+
 
   return { setTheme };
   }
