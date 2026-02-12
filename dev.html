@@ -365,8 +365,8 @@
   }
 
 
-  /* Photo background swatch button (camera) */
-  .bg-swatch.photo{
+  /* Photo background swatch button */
+  .bgSwatch.photo{
     display:flex;
     align-items:center;
     justify-content:center;
@@ -374,19 +374,8 @@
     line-height:1;
     border-style:dashed;
     border-width:1px;
-    background: rgba(0,0,0,0.08);
   }
-  .bg-swatch.photo::after{ content:"📷"; }
-  .photo-wrap{ position:relative; width:26px; height:26px; flex:0 0 auto; }
-  .photo-wrap .bg-swatch{ width:26px; height:26px; }
-  .photo-input{
-    position:absolute;
-    inset:0;
-    width:100%;
-    height:100%;
-    opacity:0;
-    cursor:pointer;
-  }
+  .bgSwatch.photo::after{ content:""; }
   .photoBgActive .bg-palette-wrap{ backdrop-filter: blur(2px); }
 
 
@@ -419,7 +408,20 @@
     z-index: 1;
   }
 
+
+  /* Upload icon button */
+  .bgSwatch.upload {
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .bgSwatch.upload svg{
+    width:16px; height:16px;
+    fill: currentColor;
+    opacity:0.9;
+  }
 </style>
+
 </head>
 
 <body>
@@ -468,7 +470,7 @@
     <div id="arena"></div>
     <svg id="linesLayer" aria-hidden="true"></svg>
 
-    <div id="overlay" role="dialog" aria-modal="true" style="display:none">
+    <div id="overlay" role="dialog" aria-modal="true">
       <div id="panel">
         <h2>Final Score</h2>
         <div id="score">N = 2</div>
@@ -791,15 +793,6 @@ const endBtn = document.getElementById("endBtn");
   const bgFileInput = document.getElementById("bgFileInput");
   let photoBgUrl = null;
 
-  function fileToDataURL(file){
-    return new Promise((resolve, reject)=>{
-      const reader = new FileReader();
-      reader.onerror = () => reject(reader.error || new Error("File read failed"));
-      reader.onload = () => resolve(String(reader.result || ""));
-      reader.readAsDataURL(file);
-    });
-  }
-
   function setPhotoBackground(dataUrl){
     photoBgUrl = dataUrl;
     const panel = document.getElementById("playPanel") || document.body;
@@ -818,7 +811,8 @@ const endBtn = document.getElementById("endBtn");
     document.documentElement.classList.remove("photoBgActive");
   }
 
-  function openPhotoPicker(){ /* handled by photo swatch input overlay */ }
+  function openPhotoPicker(){
+    try{ bgFileInput && bgFileInput.click(); }catch(e){}
   }
 
   if(bgFileInput){
@@ -856,8 +850,6 @@ function initBackgroundPalette(opts){
     }
 
     function setTheme(key){
-      // If a photo background was active, switching themes disables it
-      clearPhotoBackground();
       applyBackgroundTheme(key);
       setSelected(key);
       try{ localStorage.setItem(storageKey, key); }catch(e){}
@@ -887,46 +879,21 @@ function initBackgroundPalette(opts){
     }catch(e){}
     setTheme(initial);
 
-    // Photo swatch at end (tap to pick an image file)
-    // On iOS Safari, programmatic .click() on a hidden file input can be blocked.
-    // So we overlay a real <input type="file"> directly on top of the camera swatch.
-    const photoWrap = document.createElement("span");
-    photoWrap.className = "photo-wrap";
+    // Photo swatch at end (opens image picker; long-press clears photo)
+    const photo = document.createElement("button");
+    photo.type = "button";
+    photo.className = "bgSwatch upload";
+    photo.title = "Upload photo background";
+    photo.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20h14v-2H5v2zm7-16l-5 5h3v4h4v-4h3l-5-5z"/></svg>`;
+    photo.setAttribute("role","option");
+    photo.addEventListener("click", () => { openPhotoPicker(); });
 
-    const photoBtn = document.createElement("button");
-    photoBtn.type = "button";
-    photoBtn.className = "bg-swatch photo";
-    photoBtn.title = "Use a photo as background";
-    photoBtn.setAttribute("aria-selected", "false");
-    photoBtn.dataset.key = "__photo__";
+    let pressTimer = null;
+    photo.addEventListener("pointerdown", () => { pressTimer = setTimeout(() => { clearPhotoBackground(); }, 650); });
+    photo.addEventListener("pointerup", () => { if(pressTimer) clearTimeout(pressTimer); pressTimer=null; });
+    photo.addEventListener("pointercancel", () => { if(pressTimer) clearTimeout(pressTimer); pressTimer=null; });
 
-    const photoInput = document.createElement("input");
-    photoInput.type = "file";
-    photoInput.accept = "image/*";
-    photoInput.className = "photo-input";
-    photoInput.setAttribute("aria-label", "Choose photo background");
-
-    photoInput.addEventListener("change", async (e) => {
-      const file = e.target.files && e.target.files[0];
-      if(!file) return;
-      try{
-        const dataUrl = await fileToDataURL(file);
-        setPhotoBackground(dataUrl);
-        // Mark selection
-        [...container.querySelectorAll(".bg-swatch")].forEach(el=>{
-          el.setAttribute("aria-selected", el.dataset.key === "__photo__" ? "true" : "false");
-        });
-      }catch(err){
-        console.warn("Photo load failed", err);
-      }finally{
-        // allow re-selecting same file later
-        photoInput.value = "";
-      }
-    });
-
-    photoWrap.appendChild(photoBtn);
-    photoWrap.appendChild(photoInput);
-    container.appendChild(photoWrap);
+    container.appendChild(photo);
 
   return { setTheme };
   }
@@ -1185,19 +1152,6 @@ game.classList.add("goldGlow");
 
   function attemptClose(){
     try { window.close(); } catch(e) {}
-  }
-
-  function showFinalScoreInline(){
-    // Minimal, non-blocking end-of-game message (no modal)
-    try{
-      const msg = document.getElementById("message");
-      if(msg){
-        msg.textContent = `Final score: N = ${bestN}. Tap Play to try again.`;
-      }
-    }catch(e){}
-    // Always hide overlay if it exists
-    const ov = document.getElementById("overlay");
-    if(ov) ov.style.display = "none";
   }
 
   function endGame(){
