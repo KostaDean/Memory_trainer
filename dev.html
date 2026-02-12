@@ -429,6 +429,20 @@
     fill: currentColor;
     opacity:0.9;
   }
+
+  /* Foreground photo mode: use the existing final-score overlay as a transparent photo display,
+     while allowing gameplay to continue underneath. */
+  #overlay.photoMode{
+    background: rgba(0,0,0,0.18);
+    pointer-events: none; /* allow clicks/taps to pass through to circles */
+  }
+  #overlay.photoMode #panel{
+    background: rgba(17,26,51,0.12);
+    border-color: rgba(255,255,255,0.12);
+    backdrop-filter: blur(2px);
+    pointer-events: none;
+  }
+
 </style>
 
 </head>
@@ -448,7 +462,7 @@
     <div class="bg-palette-wrap" aria-label="Background">
       <span class="bg-label">Background</span>
       <div id="bgPalette" class="bg-palette" role="listbox" aria-label="Background colors"></div>
-          <button id="photoBgBtn" class="tune-btn" title="Upload photo background">Photo BG</button>
+          <button id="uploadBtn" class="tune-btn" title="Upload photo (foreground)">Upload</button>
     </div>
 
     <div class="tune-wrap" aria-label="Training tuning">
@@ -483,6 +497,9 @@
     <div id="overlay" role="dialog" aria-modal="true">
       <div id="panel">
         <h2>Final Score</h2>
+        <div style="margin:10px 0 12px;">
+          <img id="uploadedPhoto" alt="Uploaded photo" style="width:100%; max-height:55vh; object-fit:contain; border-radius:14px; display:none; box-shadow:0 14px 50px rgba(0,0,0,0.45);" />
+        </div>
         <div id="score">N = 2</div>
         <p>
           This is the <b>highest N</b> you reached in this session.
@@ -510,6 +527,8 @@
   </div>
 </div>
 
+
+  <input id="bgFileInput" type="file" accept="image/*" style="display:none" />
 <script>
 (() => {
   const game   = document.getElementById("game");
@@ -818,73 +837,68 @@ const endBtn = document.getElementById("endBtn");
 
   // Module: renders swatches and manages selection state
   
-  // ---- Photo background (local file; never uploaded) ----
+  // ---- Upload photo as FOREGROUND (displayed in existing Final Score panel) ----
   const bgFileInput = document.getElementById("bgFileInput");
-  let photoBgUrl = null;
+  const uploadBtn = document.getElementById("uploadBtn");
+  const uploadedPhoto = document.getElementById("uploadedPhoto");
+  let photoActive = false;
 
-  function setPhotoBackground(dataUrl){
-    photoBgUrl = dataUrl;
-    const panel = document.getElementById("playPanel") || document.body;
-
-    // Use CSS variable so both the sharp (contain) layer and blurred (cover) layer share the same image
-    panel.style.setProperty("--photoUrl", `url(${dataUrl})`);
-    panel.classList.add("photoBgActive");
-    document.documentElement.classList.add("photoBgActive");
+  function showPhotoOverlay(dataUrl){
+    if(!uploadedPhoto) return;
+    uploadedPhoto.src = dataUrl;
+    uploadedPhoto.style.display = "block";
+    overlay.classList.add("show");
+    overlay.classList.add("photoMode");
+    photoActive = true;
+    setStatus("Photo loaded (foreground). Play continues underneath.");
   }
 
-  function clearPhotoBackground(){
-    photoBgUrl = null;
-    const panel = document.getElementById("playPanel") || document.body;
-    panel.style.removeProperty("--photoUrl");
-    panel.classList.remove("photoBgActive");
-    document.documentElement.classList.remove("photoBgActive");
+  function clearPhotoOverlay(){
+    if(!uploadedPhoto) return;
+    uploadedPhoto.src = "";
+    uploadedPhoto.style.display = "none";
+    overlay.classList.remove("photoMode");
+    photoActive = false;
+    // If the overlay was only showing for photo (not final score), hide it.
+    if(!overlay.dataset.finalScoreShowing) if(!overlay.classList.contains("photoMode")) overlay.classList.remove("show");
+    setStatus("Photo cleared.");
   }
-
-  const photoBgBtn = document.getElementById("photoBgBtn");
 
   function openPhotoPicker(){
-    // iOS Safari is picky: trigger the file picker directly from a user gesture.
     if(!bgFileInput) return;
     bgFileInput.click();
   }
 
-  if(photoBgBtn){
-    // Tap/click opens picker
-    photoBgBtn.addEventListener("click", (e) => { e.preventDefault(); openPhotoPicker(); }, {passive:false});
-    photoBgBtn.addEventListener("touchend", (e) => { e.preventDefault(); openPhotoPicker(); }, {passive:false});
+  if(uploadBtn){
+    // iOS-safe: direct user gesture -> file picker
+    uploadBtn.addEventListener("click", (e)=>{ e.preventDefault(); openPhotoPicker(); }, {passive:false});
+    uploadBtn.addEventListener("touchend", (e)=>{ e.preventDefault(); openPhotoPicker(); }, {passive:false});
 
-    // Long-press (0.6s) clears background
-    let pressT = null;
-    const startPress = (e) => {
-      if(pressT) clearTimeout(pressT);
-      pressT = setTimeout(() => { clearPhotoBackground(); setStatus("Photo background cleared."); }, 600);
-    };
-    const cancelPress = () => { if(pressT) clearTimeout(pressT); pressT = null; };
-
-    photoBgBtn.addEventListener("touchstart", startPress, {passive:true});
-    photoBgBtn.addEventListener("touchmove", cancelPress, {passive:true});
-    photoBgBtn.addEventListener("touchcancel", cancelPress, {passive:true});
-
-    // Pointer fallbacks (desktop/Android)
-    photoBgBtn.addEventListener("pointerdown", startPress, {passive:true});
-    photoBgBtn.addEventListener("pointerup", cancelPress, {passive:true});
-    photoBgBtn.addEventListener("pointercancel", cancelPress, {passive:true});
+    // Long-press (0.6s) clears
+    let t=null;
+    const start=()=>{ if(t) clearTimeout(t); t=setTimeout(()=>{ clearPhotoOverlay(); }, 600); };
+    const cancel=()=>{ if(t) clearTimeout(t); t=null; };
+    uploadBtn.addEventListener("touchstart", start, {passive:true});
+    uploadBtn.addEventListener("touchmove", cancel, {passive:true});
+    uploadBtn.addEventListener("touchcancel", cancel, {passive:true});
+    uploadBtn.addEventListener("pointerdown", start, {passive:true});
+    uploadBtn.addEventListener("pointerup", cancel, {passive:true});
+    uploadBtn.addEventListener("pointercancel", cancel, {passive:true});
   }
 
   if(bgFileInput){
-    bgFileInput.addEventListener("change", (e) => {
+    bgFileInput.addEventListener("change", (e)=>{
       const file = e.target.files && e.target.files[0];
       if(!file) return;
       if(!file.type || !file.type.startsWith("image/")) return;
       const reader = new FileReader();
-      reader.onload = () => {
-        if(typeof reader.result === "string") setPhotoBackground(reader.result);
+      reader.onload = ()=>{
+        if(typeof reader.result === "string") showPhotoOverlay(reader.result);
       };
       reader.readAsDataURL(file);
       bgFileInput.value = "";
     });
   }
-
 
 function initBackgroundPalette(opts){
     const {
@@ -1200,6 +1214,7 @@ game.classList.add("goldGlow");
   }
 
   function showFinalScore(){
+    overlay.dataset.finalScoreShowing = "1";
     phase = "ended";
     clearBoard();
     scoreEl.textContent = `N = ${maxNThisSession}`;
@@ -1232,14 +1247,17 @@ game.classList.add("goldGlow");
   });
 
   restartFromOverlay.addEventListener("click", () => {
-    overlay.classList.remove("show");
+    overlay.dataset.finalScoreShowing = "";
+    // If we are in photoMode, keep overlay shown; otherwise hide it.
+    if(!overlay.classList.contains("photoMode")) if(!overlay.classList.contains("photoMode")) overlay.classList.remove("show");
     startGame();
   });
 
   function startGame(){
+    overlay.dataset.finalScoreShowing = "";
     ensureAudio();
     lockViewport();
-    overlay.classList.remove("show");
+    if(!overlay.classList.contains("photoMode")) overlay.classList.remove("show");
     runToken++;
     phase = "idle";
     N = 2;
@@ -1253,11 +1271,6 @@ game.classList.add("goldGlow");
   startBtn.addEventListener("click", () => startGame());
 
 })();
-
-  renderMisses();
 </script>
-
-
-  <input id="bgFileInput" type="file" accept="image/*" style="display:none" />
 </body>
 </html>
