@@ -381,7 +381,7 @@
 
   /* Photo background: avoid cropping faces by using CONTAIN.
      Add a soft blurred "fill" behind so letterboxing looks good. */
-  #panel.photoBgActive{
+  #playPanel.photoBgActive{
     position: relative;
     overflow: hidden;
     background-image: var(--photoUrl);
@@ -389,7 +389,7 @@
     background-position: center center;
     background-repeat: no-repeat;
   }
-  #panel.photoBgActive::before{
+  #playPanel.photoBgActive::before{
     content:"";
     position:absolute;
     inset:0;
@@ -403,7 +403,7 @@
     z-index: 0;
     pointer-events:none;
   }
-  #panel.photoBgActive > *{
+  #playPanel.photoBgActive > *{
     position: relative;
     z-index: 1;
   }
@@ -506,82 +506,6 @@
   const game   = document.getElementById("game");
   const arena  = document.getElementById("arena");
   const startBtn = document.getElementById("startBtn");
-
-  // ---- Photo background (user upload) ----
-  const panel = document.getElementById("panel"); // main game panel container
-  const photoBgBtn = document.getElementById("photoBgBtn");
-  const PHOTO_BG_KEY = "memory_trainer_photo_bg_v1";
-
-  // Hidden file input (created in JS so you don't have to manage it in HTML)
-  const photoInput = document.createElement("input");
-  photoInput.type = "file";
-  photoInput.accept = "image/*";
-  photoInput.style.display = "none";
-  document.body.appendChild(photoInput);
-
-  // Apply saved photo background on load (same device/browser)
-  try {
-    const savedUrl = localStorage.getItem(PHOTO_BG_KEY);
-    if (savedUrl && panel) {
-      panel.style.setProperty("--photoUrl", `url(${savedUrl})`);
-      panel.classList.add("photoBgActive");
-    }
-  } catch {}
-
-  function clearPhotoBg() {
-    if (!panel) return;
-    panel.classList.remove("photoBgActive");
-    panel.style.removeProperty("--photoUrl");
-    try { localStorage.removeItem(PHOTO_BG_KEY); } catch {}
-  }
-
-  function setPhotoBg(dataUrl) {
-    if (!panel) return;
-    panel.style.setProperty("--photoUrl", `url(${dataUrl})`);
-    panel.classList.add("photoBgActive");
-    try { localStorage.setItem(PHOTO_BG_KEY, dataUrl); } catch {}
-  }
-
-  if (photoBgBtn) {
-    // Tap -> choose photo
-    photoBgBtn.addEventListener("click", () => photoInput.click());
-
-    // Press & hold (>=600ms) -> clear photo
-    let holdTimer = null;
-    const startHold = () => {
-      holdTimer = setTimeout(() => {
-        clearPhotoBg();
-        if (typeof toast === "function") toast("Photo BG cleared");
-      }, 600);
-    };
-    const endHold = () => { if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; } };
-
-    photoBgBtn.addEventListener("touchstart", startHold, {passive:true});
-    photoBgBtn.addEventListener("touchend", endHold, {passive:true});
-    photoBgBtn.addEventListener("touchcancel", endHold, {passive:true});
-    photoBgBtn.addEventListener("mousedown", startHold);
-    photoBgBtn.addEventListener("mouseup", endHold);
-    photoBgBtn.addEventListener("mouseleave", endHold);
-  }
-
-  photoInput.addEventListener("change", async () => {
-    const file = photoInput.files && photoInput.files[0];
-    photoInput.value = "";
-    if (!file) return;
-    if (!file.type || !file.type.startsWith("image/")) return;
-
-    // Read as data URL and apply
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = reader.result;
-      if (typeof dataUrl === "string") {
-        setPhotoBg(dataUrl);
-        if (typeof toast === "function") toast("Photo BG set");
-      }
-    };
-    reader.readAsDataURL(file);
-  });
-
   
 
   // ---- Forgiving misses (kid-friendly) ----
