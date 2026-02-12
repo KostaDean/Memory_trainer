@@ -441,6 +441,9 @@
       <div id="bgPalette" class="bg-palette" role="listbox" aria-label="Background colors"></div>
     </div>
 
+
+    <button id="photoBgBtn" title="Upload a photo background (press and hold to clear)">Photo BG</button>
+
     <div class="tune-wrap" aria-label="Training tuning">
       <div class="tune" role="group" aria-label="Timing">
         <span class="tune-label">Timing</span>
@@ -460,7 +463,7 @@
   </div>
 
   <div style="display:flex; gap:10px; align-items:center;">
-    <div id="status">Press Start once. Then it runs continuously.</div>
+    <div id="status">Press Play once. Then it runs continuously.</div>
     <button id="closeBtn" title="Close">✕</button>
   </div>
 </header>
@@ -478,7 +481,15 @@
           This is the <b>highest N</b> you reached in this session.
           (In Dropbox, you may still need to close the preview tab/window manually.)
         </p>
+        <p style="margin-top:-6px">
+          If you'd like to support this project:
+          <a id="donateLink" href="https://paypal.me/ConstantinosRagazas" target="_blank" rel="noopener"
+             style="color:#ffe3a1; font-weight:700; text-decoration:none;">
+            Donate via PayPal
+          </a>
+        </p>
         <div class="row">
+          <button id="donateBtn">Donate</button>
           <button id="restartFromOverlay">Play Again</button>
           <button id="closeFromOverlay">Close</button>
         </div>
@@ -487,6 +498,8 @@
 
   </div>
 </div>
+
+  <input id="bgFileInput" type="file" accept="image/*" style="display:none" />
 
 <script>
 (() => {
@@ -614,6 +627,15 @@ const endBtn = document.getElementById("endBtn");
   const scoreEl = document.getElementById("score");
   const restartFromOverlay = document.getElementById("restartFromOverlay");
   const closeFromOverlay = document.getElementById("closeFromOverlay");
+
+  const donateBtn = document.getElementById("donateBtn");
+  const DONATE_URL = "https://paypal.me/ConstantinosRagazas";
+  if(donateBtn){
+    donateBtn.addEventListener("click", () => {
+      window.open(DONATE_URL, "_blank", "noopener");
+    });
+  }
+
 
   const linesLayer = document.getElementById("linesLayer");
 
@@ -795,7 +817,7 @@ const endBtn = document.getElementById("endBtn");
 
   function setPhotoBackground(dataUrl){
     photoBgUrl = dataUrl;
-    const panel = document.getElementById("playPanel") || document.body;
+    const panel = document.body;
 
     // Use CSS variable so both the sharp (contain) layer and blurred (cover) layer share the same image
     panel.style.setProperty("--photoUrl", `url(${dataUrl})`);
@@ -805,7 +827,7 @@ const endBtn = document.getElementById("endBtn");
 
   function clearPhotoBackground(){
     photoBgUrl = null;
-    const panel = document.getElementById("playPanel") || document.body;
+    const panel = document.body;
     panel.style.removeProperty("--photoUrl");
     panel.classList.remove("photoBgActive");
     document.documentElement.classList.remove("photoBgActive");
@@ -814,6 +836,21 @@ const endBtn = document.getElementById("endBtn");
   function openPhotoPicker(){
     try{ bgFileInput && bgFileInput.click(); }catch(e){}
   }
+
+  const photoBgBtn = document.getElementById("photoBgBtn");
+  if(photoBgBtn){
+    photoBgBtn.addEventListener("click", () => openPhotoPicker());
+    // press & hold to clear
+    let holdTimer = null;
+    photoBgBtn.addEventListener("pointerdown", () => {
+      holdTimer = setTimeout(() => { clearPhotoBackground(); setStatus("Photo background cleared."); }, 650);
+    });
+    const cancelHold = () => { if(holdTimer) clearTimeout(holdTimer); holdTimer = null; };
+    photoBgBtn.addEventListener("pointerup", cancelHold);
+    photoBgBtn.addEventListener("pointercancel", cancelHold);
+    photoBgBtn.addEventListener("pointerleave", cancelHold);
+  }
+
 
   if(bgFileInput){
     bgFileInput.addEventListener("change", (e) => {
@@ -878,23 +915,6 @@ function initBackgroundPalette(opts){
       if(saved && BACKGROUND_THEMES[saved]) initial = saved;
     }catch(e){}
     setTheme(initial);
-
-    // Photo swatch at end (opens image picker; long-press clears photo)
-    const photo = document.createElement("button");
-    photo.type = "button";
-    photo.className = "bgSwatch upload";
-    photo.title = "Upload photo background";
-    photo.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20h14v-2H5v2zm7-16l-5 5h3v4h4v-4h3l-5-5z"/></svg>`;
-    photo.setAttribute("role","option");
-    photo.addEventListener("click", () => { openPhotoPicker(); });
-
-    let pressTimer = null;
-    photo.addEventListener("pointerdown", () => { pressTimer = setTimeout(() => { clearPhotoBackground(); }, 650); });
-    photo.addEventListener("pointerup", () => { if(pressTimer) clearTimeout(pressTimer); pressTimer=null; });
-    photo.addEventListener("pointercancel", () => { if(pressTimer) clearTimeout(pressTimer); pressTimer=null; });
-
-    container.appendChild(photo);
-
   return { setTheme };
   }
 
@@ -1021,11 +1041,22 @@ game.classList.add("goldGlow");
     phase = "showing";
     setStatus(`Watch the sequence… (${N})`);
 
+    // Randomize colors each round (no repeats until palette is exhausted)
+    const paletteIdx = [...Array(COLOR_PALETTE.length).keys()];
+    for(let i=paletteIdx.length-1;i>0;i--){
+      const j = Math.floor(Math.random()*(i+1));
+      [paletteIdx[i], paletteIdx[j]] = [paletteIdx[j], paletteIdx[i]];
+    }
+    function pickColorIndex(i){
+      return paletteIdx[i % paletteIdx.length];
+    }
+
     circles = nonOverlappingPlacement(N).map((pos, i) => {
-      const color = COLOR_PALETTE[i % COLOR_PALETTE.length];
-      const freq  = NOTE_FREQS[i % NOTE_FREQS.length];
-      const wave  = WAVEFORMS[i % WAVEFORMS.length];
-      return { ...pos, index:i, color, freq, wave, el:null };
+      const ci = pickColorIndex(i);
+      const color = COLOR_PALETTE[ci];
+      const freq  = NOTE_FREQS[ci % NOTE_FREQS.length];
+      const wave  = WAVEFORMS[ci % WAVEFORMS.length];
+      return { ...pos, index:ci, order:i, color, freq, wave, el:null };
     });
 
     circles.forEach(c => {
@@ -1086,7 +1117,7 @@ game.classList.add("goldGlow");
   }
 
   function handleClick(circleObj) {
-    const i = circleObj.index;
+    const i = circleObj.order;
 
     if (i === expectedIndex) {
       playToneForIndex(circleObj.index, 135);
@@ -1179,6 +1210,7 @@ game.classList.add("goldGlow");
   });
 
   function startGame(){
+    overlay.classList.remove("show");
     ensureAudio();
     lockViewport();
     runToken++;
@@ -1194,11 +1226,6 @@ game.classList.add("goldGlow");
   startBtn.addEventListener("click", () => startGame());
 
 })();
-
-  renderMisses();
 </script>
-
-
-  <input id="bgFileInput" type="file" accept="image/*" style="display:none" />
 </body>
 </html>
