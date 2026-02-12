@@ -79,7 +79,7 @@
     padding:7px 12px;
   }
 
-  #playPanel{
+  #gameWrap{
     display:grid;
     place-items:center;
     padding:12px;
@@ -98,15 +98,6 @@
     box-shadow: 0 20px 70px rgba(0,0,0,0.35);
     transition: background 160ms ease, box-shadow 220ms ease;
   }
-
-  /* When photo background is active, make the play panel transparent so the photo shows through */
-  #playPanel.photoBgActive #game{
-    background: transparent !important;
-  }
-  #playPanel.photoBgActive #game.flashA{ background: rgba(31,47,102,0.32) !important; }
-  #playPanel.photoBgActive #game.flashB{ background: rgba(13,22,51,0.38) !important; }
-  #playPanel.photoBgActive .circle{ opacity: 0.90; }
-
 
   #game.flashA{ background: rgba(31,47,102,0.88); }
   #game.flashB{ background: rgba(13,22,51,0.92); }
@@ -448,8 +439,10 @@
     <div class="bg-palette-wrap" aria-label="Background">
       <span class="bg-label">Background</span>
       <div id="bgPalette" class="bg-palette" role="listbox" aria-label="Background colors"></div>
-          <button id="photoBgBtn" class="tune-btn" title="Upload photo background">Photo BG</button>
     </div>
+
+
+    <button id="photoBgBtn" title="Upload a photo background (press and hold to clear)">Photo BG</button>
 
     <div class="tune-wrap" aria-label="Training tuning">
       <div class="tune" role="group" aria-label="Timing">
@@ -475,7 +468,7 @@
   </div>
 </header>
 
-<div id="playPanel">
+<div id="gameWrap">
   <div id="game">
     <div id="arena"></div>
     <svg id="linesLayer" aria-hidden="true"></svg>
@@ -488,27 +481,25 @@
           This is the <b>highest N</b> you reached in this session.
           (In Dropbox, you may still need to close the preview tab/window manually.)
         </p>
-        <div class="row">
-          <button id="restartFromOverlay">Play Again</button>
-          <button id="closeFromOverlay">Close</button>
-        </div>
-
-        <div style="margin-top:12px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.14);">
-          <div style="color:var(--muted); font-size:13px; margin-bottom:8px;">
-            If you enjoy this trainer, please consider supporting development:
-          </div>
-          <a href="https://www.paypal.com/paypalme/ConstantinosRagazas" target="_blank" rel="noopener"
-             style="display:inline-flex; align-items:center; gap:8px; padding:10px 12px; border-radius:12px;
-                    border:1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.08); color:var(--text);
-                    text-decoration:none; font-weight:800;">
+        <p style="margin-top:-6px">
+          If you'd like to support this project:
+          <a id="donateLink" href="https://paypal.me/ConstantinosRagazas" target="_blank" rel="noopener"
+             style="color:#ffe3a1; font-weight:700; text-decoration:none;">
             Donate via PayPal
           </a>
+        </p>
+        <div class="row">
+          <button id="donateBtn">Donate</button>
+          <button id="restartFromOverlay">Play Again</button>
+          <button id="closeFromOverlay">Close</button>
         </div>
       </div>
     </div>
 
   </div>
 </div>
+
+  <input id="bgFileInput" type="file" accept="image/*" style="display:none" />
 
 <script>
 (() => {
@@ -637,6 +628,15 @@ const endBtn = document.getElementById("endBtn");
   const restartFromOverlay = document.getElementById("restartFromOverlay");
   const closeFromOverlay = document.getElementById("closeFromOverlay");
 
+  const donateBtn = document.getElementById("donateBtn");
+  const DONATE_URL = "https://paypal.me/ConstantinosRagazas";
+  if(donateBtn){
+    donateBtn.addEventListener("click", () => {
+      window.open(DONATE_URL, "_blank", "noopener");
+    });
+  }
+
+
   const linesLayer = document.getElementById("linesLayer");
 
   function clearLines(){
@@ -739,13 +739,6 @@ const endBtn = document.getElementById("endBtn");
   const sleep = (ms) => new Promise(res => setTimeout(res, ms));
   const rand  = (a,b) => Math.random()*(b-a)+a;
   const clamp = (v,lo,hi) => Math.max(lo, Math.min(hi, v));
-  const shuffle = (arr) => {
-    for(let i=arr.length-1;i>0;i--){
-      const j = Math.floor(Math.random()*(i+1));
-      [arr[i], arr[j]] = [arr[j], arr[i]];
-    }
-    return arr;
-  };
   const dist  = (a,b) => Math.hypot(a.cx-b.cx, a.cy-b.cy);
 
   function setStatus(s){ statusEl.textContent = s; }
@@ -824,7 +817,7 @@ const endBtn = document.getElementById("endBtn");
 
   function setPhotoBackground(dataUrl){
     photoBgUrl = dataUrl;
-    const panel = document.getElementById("playPanel") || document.body;
+    const panel = document.body;
 
     // Use CSS variable so both the sharp (contain) layer and blurred (cover) layer share the same image
     panel.style.setProperty("--photoUrl", `url(${dataUrl})`);
@@ -834,42 +827,30 @@ const endBtn = document.getElementById("endBtn");
 
   function clearPhotoBackground(){
     photoBgUrl = null;
-    const panel = document.getElementById("playPanel") || document.body;
+    const panel = document.body;
     panel.style.removeProperty("--photoUrl");
     panel.classList.remove("photoBgActive");
     document.documentElement.classList.remove("photoBgActive");
   }
 
-  const photoBgBtn = document.getElementById("photoBgBtn");
-
   function openPhotoPicker(){
-    // iOS Safari is picky: trigger the file picker directly from a user gesture.
-    if(!bgFileInput) return;
-    bgFileInput.click();
+    try{ bgFileInput && bgFileInput.click(); }catch(e){}
   }
 
+  const photoBgBtn = document.getElementById("photoBgBtn");
   if(photoBgBtn){
-    // Tap/click opens picker
-    photoBgBtn.addEventListener("click", (e) => { e.preventDefault(); openPhotoPicker(); }, {passive:false});
-    photoBgBtn.addEventListener("touchend", (e) => { e.preventDefault(); openPhotoPicker(); }, {passive:false});
-
-    // Long-press (0.6s) clears background
-    let pressT = null;
-    const startPress = (e) => {
-      if(pressT) clearTimeout(pressT);
-      pressT = setTimeout(() => { clearPhotoBackground(); setStatus("Photo background cleared."); }, 600);
-    };
-    const cancelPress = () => { if(pressT) clearTimeout(pressT); pressT = null; };
-
-    photoBgBtn.addEventListener("touchstart", startPress, {passive:true});
-    photoBgBtn.addEventListener("touchmove", cancelPress, {passive:true});
-    photoBgBtn.addEventListener("touchcancel", cancelPress, {passive:true});
-
-    // Pointer fallbacks (desktop/Android)
-    photoBgBtn.addEventListener("pointerdown", startPress, {passive:true});
-    photoBgBtn.addEventListener("pointerup", cancelPress, {passive:true});
-    photoBgBtn.addEventListener("pointercancel", cancelPress, {passive:true});
+    photoBgBtn.addEventListener("click", () => openPhotoPicker());
+    // press & hold to clear
+    let holdTimer = null;
+    photoBgBtn.addEventListener("pointerdown", () => {
+      holdTimer = setTimeout(() => { clearPhotoBackground(); setStatus("Photo background cleared."); }, 650);
+    });
+    const cancelHold = () => { if(holdTimer) clearTimeout(holdTimer); holdTimer = null; };
+    photoBgBtn.addEventListener("pointerup", cancelHold);
+    photoBgBtn.addEventListener("pointercancel", cancelHold);
+    photoBgBtn.addEventListener("pointerleave", cancelHold);
   }
+
 
   if(bgFileInput){
     bgFileInput.addEventListener("change", (e) => {
@@ -934,23 +915,6 @@ function initBackgroundPalette(opts){
       if(saved && BACKGROUND_THEMES[saved]) initial = saved;
     }catch(e){}
     setTheme(initial);
-
-    // Photo swatch at end (opens image picker; long-press clears photo)
-    const photo = document.createElement("button");
-    photo.type = "button";
-    photo.className = "bgSwatch upload";
-    photo.title = "Upload photo background";
-    photo.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20h14v-2H5v2zm7-16l-5 5h3v4h4v-4h3l-5-5z"/></svg>`;
-    photo.setAttribute("role","option");
-    photo.addEventListener("click", () => { openPhotoPicker(); });
-
-    let pressTimer = null;
-    photo.addEventListener("pointerdown", () => { pressTimer = setTimeout(() => { clearPhotoBackground(); }, 650); });
-    photo.addEventListener("pointerup", () => { if(pressTimer) clearTimeout(pressTimer); pressTimer=null; });
-    photo.addEventListener("pointercancel", () => { if(pressTimer) clearTimeout(pressTimer); pressTimer=null; });
-
-    container.appendChild(photo);
-
   return { setTheme };
   }
 
@@ -1077,13 +1041,22 @@ game.classList.add("goldGlow");
     phase = "showing";
     setStatus(`Watch the sequence… (${N})`);
 
-    const colorOrder = shuffle([...COLOR_PALETTE]);
+    // Randomize colors each round (no repeats until palette is exhausted)
+    const paletteIdx = [...Array(COLOR_PALETTE.length).keys()];
+    for(let i=paletteIdx.length-1;i>0;i--){
+      const j = Math.floor(Math.random()*(i+1));
+      [paletteIdx[i], paletteIdx[j]] = [paletteIdx[j], paletteIdx[i]];
+    }
+    function pickColorIndex(i){
+      return paletteIdx[i % paletteIdx.length];
+    }
 
     circles = nonOverlappingPlacement(N).map((pos, i) => {
-      const color = colorOrder[i % colorOrder.length];
-      const freq  = NOTE_FREQS[i % NOTE_FREQS.length];
-      const wave  = WAVEFORMS[i % WAVEFORMS.length];
-      return { ...pos, index:i, color, freq, wave, el:null };
+      const ci = pickColorIndex(i);
+      const color = COLOR_PALETTE[ci];
+      const freq  = NOTE_FREQS[ci % NOTE_FREQS.length];
+      const wave  = WAVEFORMS[ci % WAVEFORMS.length];
+      return { ...pos, index:ci, order:i, color, freq, wave, el:null };
     });
 
     circles.forEach(c => {
@@ -1144,7 +1117,7 @@ game.classList.add("goldGlow");
   }
 
   function handleClick(circleObj) {
-    const i = circleObj.index;
+    const i = circleObj.order;
 
     if (i === expectedIndex) {
       playToneForIndex(circleObj.index, 135);
@@ -1237,9 +1210,9 @@ game.classList.add("goldGlow");
   });
 
   function startGame(){
+    overlay.classList.remove("show");
     ensureAudio();
     lockViewport();
-    overlay.classList.remove("show");
     runToken++;
     phase = "idle";
     N = 2;
@@ -1253,11 +1226,6 @@ game.classList.add("goldGlow");
   startBtn.addEventListener("click", () => startGame());
 
 })();
-
-  renderMisses();
 </script>
-
-
-  <input id="bgFileInput" type="file" accept="image/*" style="display:none" />
 </body>
 </html>
