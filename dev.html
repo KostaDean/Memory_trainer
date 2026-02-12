@@ -841,17 +841,34 @@ const endBtn = document.getElementById("endBtn");
   }
 
   const photoBgBtn = document.getElementById("photoBgBtn");
-  if(photoBgBtn){
-    photoBgBtn.addEventListener("click", () => openPhotoPicker());
-    // long-press to clear
-    let pressT=null;
-    photoBgBtn.addEventListener("pointerdown", () => { pressT = setTimeout(() => { clearPhotoBackground(); setStatus("Photo background cleared."); }, 600); });
-    photoBgBtn.addEventListener("pointerup", () => { if(pressT) clearTimeout(pressT); pressT=null; });
-    photoBgBtn.addEventListener("pointercancel", () => { if(pressT) clearTimeout(pressT); pressT=null; });
-  }
 
   function openPhotoPicker(){
-    try{ bgFileInput && bgFileInput.click(); }catch(e){}
+    // iOS Safari is picky: trigger the file picker directly from a user gesture.
+    if(!bgFileInput) return;
+    bgFileInput.click();
+  }
+
+  if(photoBgBtn){
+    // Tap/click opens picker
+    photoBgBtn.addEventListener("click", (e) => { e.preventDefault(); openPhotoPicker(); }, {passive:false});
+    photoBgBtn.addEventListener("touchend", (e) => { e.preventDefault(); openPhotoPicker(); }, {passive:false});
+
+    // Long-press (0.6s) clears background
+    let pressT = null;
+    const startPress = (e) => {
+      if(pressT) clearTimeout(pressT);
+      pressT = setTimeout(() => { clearPhotoBackground(); setStatus("Photo background cleared."); }, 600);
+    };
+    const cancelPress = () => { if(pressT) clearTimeout(pressT); pressT = null; };
+
+    photoBgBtn.addEventListener("touchstart", startPress, {passive:true});
+    photoBgBtn.addEventListener("touchmove", cancelPress, {passive:true});
+    photoBgBtn.addEventListener("touchcancel", cancelPress, {passive:true});
+
+    // Pointer fallbacks (desktop/Android)
+    photoBgBtn.addEventListener("pointerdown", startPress, {passive:true});
+    photoBgBtn.addEventListener("pointerup", cancelPress, {passive:true});
+    photoBgBtn.addEventListener("pointercancel", cancelPress, {passive:true});
   }
 
   if(bgFileInput){
