@@ -510,7 +510,7 @@
 
 
   /* Center labels on Stop/Clear */
-  #stopRecBtn, #clearRecBtn{
+  #stopRecBtn, #clearRecBtn, #markRecBtn{
     display:flex;
     align-items:center;
     justify-content:center;
@@ -541,8 +541,8 @@
       <button id="uploadBtn" class="tune-btn wide" title="Upload photo overlay (tap) / clear (hold)">Upload</button>
       <button id="recBtn" class="tune-btn wide" title="Record voice (tap once per word as you speak)">Record</button>
       <button id="stopRecBtn" class="tune-btn" title="Stop recording" disabled>Stop</button>
-      <button id="markBtn" class="tune-btn" title="Mark word boundary" disabled>Mark</button>
       <button id="clearRecBtn" class="tune-btn" title="Clear recording" disabled>Clear</button>
+      <button id="markRecBtn" class="tune-btn" title="Mark word boundary (tap per word)" disabled>Mark</button>
       <span class="pill">Words: <b id="wordCount">0</b></span>
     </div>
 </div>
@@ -653,7 +653,6 @@
     // Safe if audio is blocked; uses the existing AudioContext.
     try{
       const ctx = ensureAudio();
-    try{ if(typeof voice !== "undefined" && voice.lastPlayPromise) await voice.lastPlayPromise; }catch(e){}
     // audible confirmation (very short)
     try{ playToneForIndex(0, 90); }catch(e){}
       const now = ctx.currentTime;
@@ -991,7 +990,6 @@ const endBtn = document.getElementById("endBtn");
   const recBtn = document.getElementById("recBtn");
   const stopRecBtn = document.getElementById("stopRecBtn");
   const clearRecBtn = document.getElementById("clearRecBtn");
-  const markBtn = document.getElementById("markBtn");
   const wordCountEl = document.getElementById("wordCount");
 
   const voice = {
@@ -1121,24 +1119,17 @@ const endBtn = document.getElementById("endBtn");
     setWordCount(voice.markers.length);
   }
 
-  const WORD_PAD_BEFORE_MS = 40;
-  const WORD_PAD_AFTER_MS  = 70;
-  const WORD_PAD_BEFORE_RECALL_MS = 20;
-  const WORD_PAD_AFTER_RECALL_MS  = 40;
+  const WORD_PAD_BEFORE_MS = 90;
+  const WORD_PAD_AFTER_MS  = 140;
 
   function hasVoiceWords(){
     return !!(voice.audioBuffer && voice.segments && voice.segments.length);
   }
 
-  async function playWord(index, mode="show"){
+  async function playWord(index){
     // Plays the slice for the given word index.
-
-    const task = (async () => {
     // Returns true if a word was played, false otherwise.
     if(!hasVoiceWords()) return false;
-
-    // Track last playback so Play can wait for completion
-    if(typeof voice !== "undefined") voice.lastPlayPromise = null;
 
     const seg = voice.segments[index % voice.segments.length];
     const ctx = ensureAudio();
@@ -1147,7 +1138,7 @@ const endBtn = document.getElementById("endBtn");
     const dur = Math.max(0.03, seg.end - seg.start);
 
     // small silence before each word
-    await sleep(mode==="recall" ? WORD_PAD_BEFORE_RECALL_MS : WORD_PAD_BEFORE_MS);
+    await sleep(WORD_PAD_BEFORE_MS);
 
     await new Promise((resolve) => {
       try{
@@ -1183,12 +1174,8 @@ const endBtn = document.getElementById("endBtn");
     });
 
     // small silence after each word
-    await sleep(mode==="recall" ? WORD_PAD_AFTER_RECALL_MS : WORD_PAD_AFTER_MS);
+    await sleep(WORD_PAD_AFTER_MS);
     return true;
-    })();
-
-    if(typeof voice !== "undefined") voice.lastPlayPromise = task;
-    return await task;
   }
 
   function playWordInstant(index){
@@ -1299,7 +1286,6 @@ game.classList.add("goldGlow");
 
   // ---------- Game state ----------
   let N = 2;
-  let resetNNextPlay = false;
   let phase = "idle";
   let recallInputLocked = false; // idle | showing | recall | transition | ended
   let expectedIndex = 0;
@@ -1343,7 +1329,7 @@ game.classList.add("goldGlow");
 
       // Voice timing override during recall: wait for word to finish before processing click
       try{
-        await playWord(c.index, "recall");
+        await playWord(c.index);
       }catch(err){}
 
       handleClick(c);
@@ -1490,7 +1476,9 @@ game.classList.add("goldGlow");
     const i = circleObj.index;
 
     if (i === expectedIndex) {
-      if(!hasVoiceWords()) playToneForIndex(circleObj.index, 135);
+      playToneForIndex(circleObj.index, 135);
+
+            try{ playWordInstant(circleObj.index); }catch(e){}
 circleObj.el.classList.add("glow");
       setTimeout(() => circleObj.el?.classList.remove("glow"), 160);
 
@@ -1531,7 +1519,6 @@ circleObj.el.classList.add("glow");
   }
 
   async function onFailure() {
-    resetNNextPlay = true;
     phase = "transition";
     maxNThisSession = Math.max(maxNThisSession, N);
     setStatus(`❌ Wrong order. Adjusting…`);
@@ -1580,13 +1567,13 @@ circleObj.el.classList.add("glow");
     startGame();
   });
 
-  async function startGame(){
+  function startGame(){
     ensureAudio();
     lockViewport();
     overlay.classList.remove("show");
     runToken++;
     phase = "idle";
-    if(resetNNextPlay){ N = 2; resetNNextPlay = false; }
+    N = 2;
     maxNThisSession = 2;
     setLevel();
     clearBoard();
@@ -1594,7 +1581,7 @@ circleObj.el.classList.add("glow");
     sleep(120).then(async () => { await goldTransition(runToken); await runRound(runToken); });
 }
 
-  startBtn.addEventListener("click", async () => { await startGame(); });
+  startBtn.addEventListener("click", () => startGame());
 
 })();
 </script>
