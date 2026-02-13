@@ -1109,45 +1109,86 @@ const endBtn = document.getElementById("endBtn");
     setWordCount(voice.markers.length);
   }
 
-  async async function playWord(index){
-    if(!voice.audioBuffer || !voice.segments.length) return 0;
+  const WORD_PAD_BEFORE_MS = 90;
+  const WORD_PAD_AFTER_MS  = 140;
+
+  function hasVoiceWords(){
+    return !!(voice.audioBuffer && voice.segments && voice.segments.length);
+  }
+
+  async function playWord(index){
+    // Plays the slice for the given word index.
+    // Returns true if a word was played, false otherwise.
+    if(!hasVoiceWords()) return false;
 
     const seg = voice.segments[index % voice.segments.length];
     const ctx = ensureAudio();
+    if(ctx.state === "suspended"){ try{ await ctx.resume(); }catch(e){} }
 
-    // Small silence padding before/after each word (ms)
-    const PAD_BEFORE = 80;
-    const PAD_AFTER  = 140;
+    const dur = Math.max(0.03, seg.end - seg.start);
 
-    // iOS: resume audio context on gesture when possible
-    if(ctx.state === "suspended"){
-      try{ await ctx.resume(); }catch(e){}
-    }
+    // small silence before each word
+    await sleep(WORD_PAD_BEFORE_MS);
 
-    const dur = Math.max(0.03, seg.end - seg.start); // seconds
-
-    // pre-silence
-    await sleep(PAD_BEFORE);
-
-    // play the slice
-    const src = ctx.createBufferSource();
-    src.buffer = voice.audioBuffer;
-    src.connect(ctx.destination);
-
-    const now = ctx.currentTime;
-    try{
-      src.start(now, seg.start, dur);
-    }catch(e){
+    await new Promise((resolve) => {
       try{
-        src.start(now, seg.start);
-        setTimeout(()=>{ try{ src.stop(); }catch(_){} }, dur*1000);
-      }catch(_){}
-    }
+        const src = ctx.createBufferSource();
+        src.buffer = voice.audioBuffer;
+        src.connect(ctx.destination);
 
-    // wait for completion + post-silence
-    await sleep(dur*1000 + PAD_AFTER);
-    return PAD_BEFORE + dur*1000 + PAD_AFTER;
+        let doneCalled = false;
+        const done = () => {
+          if(doneCalled) return;
+          doneCalled = true;
+          resolve();
+        };
+
+        src.onended = done;
+
+        const now = ctx.currentTime;
+        try{
+          src.start(now, seg.start, dur);
+        }catch(e){
+          // fallback: start without duration then stop after dur
+          try{
+            src.start(now, seg.start);
+            setTimeout(()=>{ try{ src.stop(); }catch(_e){} }, Math.ceil(dur*1000));
+          }catch(_e){}
+        }
+
+        // safety timeout in case onended doesn't fire
+        setTimeout(done, Math.ceil(dur*1000) + 80);
+      }catch(e){
+        resolve();
+      }
+    });
+
+    // small silence after each word
+    await sleep(WORD_PAD_AFTER_MS);
+    return true;
   }
+
+  function playWordInstant(index){
+    if(!hasVoiceWords()) return;
+    const seg = voice.segments[index % voice.segments.length];
+    const ctx = ensureAudio();
+    const dur = Math.max(0.03, seg.end - seg.start);
+    try{
+      const src = ctx.createBufferSource();
+      src.buffer = voice.audioBuffer;
+      src.connect(ctx.destination);
+      const now = ctx.currentTime;
+      try{
+        src.start(now, seg.start, dur);
+      }catch(e){
+        try{
+          src.start(now, seg.start);
+          setTimeout(()=>{ try{ src.stop(); }catch(_e){} }, Math.ceil(dur*1000));
+        }catch(_e){}
+      }
+    }catch(e){}
+  }
+
 
   recBtn?.addEventListener("click", startRecording);
   stopRecBtn?.addEventListener("click", stopRecording);
@@ -1370,17 +1411,22 @@ game.classList.add("goldGlow");
       c.el.classList.add("active");
 
       playToneForIndex(c.index, Math.min(190, Math.floor(SHOW_MS*0.30)));
-            let wordMs = 0;
-            try{ wordMs = await playWord(i); }catch(e){}
-            // Word timing overrides the visual pacing so audio stays in sync
-            await sleep(Math.max(SHOW_MS, wordMs));
+
+      // Voice pacing: if words exist, the spoken word controls timing (with padding).
+      // Otherwise use the Timing setting (SHOW_MS/GAP_MS).
+      const didVoice = await playWord(i);
+
+      if(!didVoice){
+        await sleep(SHOW_MS);
+      }
 
       // After its turn, keep it on-screen but dimmed (no popping)
       c.el.classList.remove("active");
       c.el.classList.add("dim");
 
-      // If voice is active, the word padding already adds spacing
-      await sleep((voice.audioBuffer && voice.segments.length) ? Math.min(60, GAP_MS) : GAP_MS);
+      if(!didVoice){
+        await sleep(GAP_MS);
+      }
     }
 
     // NEW: erase lines before player starts clicking
@@ -1411,7 +1457,7 @@ game.classList.add("goldGlow");
     if (i === expectedIndex) {
       playToneForIndex(circleObj.index, 135);
 
-            try{ playWord(circleObj.index); }catch(e){}
+            try{ playWordInstant(circleObj.index); }catch(e){}
 circleObj.el.classList.add("glow");
       setTimeout(() => circleObj.el?.classList.remove("glow"), 160);
 
