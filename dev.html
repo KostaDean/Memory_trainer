@@ -205,6 +205,7 @@
 
   /* End screen */
   #overlay{
+    z-index: 50;
     position:absolute;
     inset:0;
     background: rgba(0,0,0,0.55);
@@ -418,22 +419,7 @@
   }
 
 
-  /* Upload icon button */
-  .bgSwatch.upload {
-    display:flex;
-    align-items:center;
-    justify-content:center;
-  }
-  .bgSwatch.upload svg{
-    width:16px; height:16px;
-    fill: currentColor;
-    opacity:0.9;
-  }
-
-  /* Foreground photo mode: use the existing final-score overlay as a transparent photo display,
-     while allowing gameplay to continue underneath. */
-  #overlay.photoMode{
-    background: rgba(0,0,0,0.18);
+  background: rgba(0,0,0,0.18);
     pointer-events: none; /* allow clicks/taps to pass through to circles */
   }
   #overlay.photoMode #panel{
@@ -441,6 +427,85 @@
     border-color: rgba(255,255,255,0.12);
     backdrop-filter: blur(2px);
     pointer-events: none;
+  }
+
+
+  /* Photo overlay (foreground) */
+  #photoOverlay{
+    position:absolute;
+    inset:0;
+    display:none;
+    pointer-events:none; /* let gameplay continue underneath */
+    z-index: 5;
+  }
+  #photoOverlay.show{ display:block; }
+  #photoOverlay::before{
+    content:"";
+    position:absolute; inset:0;
+    background: rgba(0,0,0,0.18);
+  }
+  #photoOverlayImg{
+    position:absolute; inset:0;
+    width:100%; height:100%;
+    object-fit: cover;
+    object-position: center;
+    opacity: 0.35;
+    filter: saturate(1.02) contrast(1.02);
+  }
+
+
+  /* Ensure final score overlay covers the entire play area */
+  #overlay{
+    position:absolute;
+    inset:0;
+  }
+  #overlay.show{
+    display:flex;
+  }
+  #panel{
+    max-height: calc(100% - 24px);
+    overflow:auto;
+  }
+
+
+  #uploadBtn{
+    padding: 12px 18px !important;
+    min-width: 96px;
+    font-weight: 800;
+    letter-spacing: 0.2px;
+  }
+
+
+  /* Voice + Upload row */
+  .voice-wrap{
+    display:flex;
+    gap:10px;
+    align-items:center;
+    flex-wrap:wrap;
+    margin-top:8px;
+  }
+  .tune-btn.wide{
+    width:auto !important;
+    min-width: 92px;
+    padding: 10px 14px !important;
+    font-weight: 800;
+    letter-spacing: 0.2px;
+  }
+  .pill{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    padding:8px 10px;
+    border-radius:14px;
+    border:1px solid rgba(255,255,255,0.14);
+    background: rgba(255,255,255,0.06);
+    color: var(--muted);
+    font-size:14px;
+  }
+  button:disabled{ opacity:0.45; }
+  #recBtn.recording{
+    border-color: rgba(255,80,80,0.9) !important;
+    box-shadow: 0 0 0 2px rgba(255,80,80,0.25);
   }
 
 </style>
@@ -462,8 +527,15 @@
     <div class="bg-palette-wrap" aria-label="Background">
       <span class="bg-label">Background</span>
       <div id="bgPalette" class="bg-palette" role="listbox" aria-label="Background colors"></div>
-          <button id="uploadBtn" class="tune-btn" title="Upload photo (foreground)">Upload</button>
+
+    <div class="voice-wrap" aria-label="Voice recording">
+      <button id="uploadBtn" class="tune-btn wide" title="Upload photo overlay (tap) / clear (hold)">Upload</button>
+      <button id="recBtn" class="tune-btn wide" title="Record voice (tap once per word as you speak)">Record</button>
+      <button id="stopRecBtn" class="tune-btn" title="Stop recording" disabled>Stop</button>
+      <button id="clearRecBtn" class="tune-btn" title="Clear recording" disabled>Clear</button>
+      <span class="pill">Words: <b id="wordCount">0</b></span>
     </div>
+</div>
 
     <div class="tune-wrap" aria-label="Training tuning">
       <div class="tune" role="group" aria-label="Timing">
@@ -494,16 +566,18 @@
     <div id="arena"></div>
     <svg id="linesLayer" aria-hidden="true"></svg>
 
+    <div id="photoOverlay" aria-hidden="true">
+      <img id="photoOverlayImg" alt="Uploaded photo" />
+    </div>
+
+
     <div id="overlay" role="dialog" aria-modal="true">
       <div id="panel">
         <h2>Final Score</h2>
-        <div style="margin:10px 0 12px;">
-          <img id="uploadedPhoto" alt="Uploaded photo" style="width:100%; max-height:55vh; object-fit:contain; border-radius:14px; display:none; box-shadow:0 14px 50px rgba(0,0,0,0.45);" />
-        </div>
-        <div id="score">N = 2</div>
+<div id="score">N = 2</div>
         <p>
           This is the <b>highest N</b> you reached in this session.
-          (In Dropbox, you may still need to close the preview tab/window manually.)
+          
         </p>
         <div class="row">
           <button id="restartFromOverlay">Play Again</button>
@@ -569,6 +643,8 @@
     // Safe if audio is blocked; uses the existing AudioContext.
     try{
       const ctx = ensureAudio();
+    // audible confirmation (very short)
+    try{ playToneForIndex(0, 90); }catch(e){}
       const now = ctx.currentTime;
 
       const notes = [659.25, 783.99, 987.77]; // E5, G5, B5
@@ -732,6 +808,10 @@ const endBtn = document.getElementById("endBtn");
     return audioCtx;
   }
 
+  // iOS audio unlock (first user gesture)
+  window.addEventListener("touchstart", () => { try{ ensureAudio(); }catch(e){} }, { once:true, passive:true });
+
+
   function playToneForIndex(idx, ms=140) {
     const ctx = ensureAudio();
     const o = ctx.createOscillator();
@@ -837,31 +917,26 @@ const endBtn = document.getElementById("endBtn");
 
   // Module: renders swatches and manages selection state
   
-  // ---- Upload photo as FOREGROUND (displayed in existing Final Score panel) ----
+  // ---- Upload photo as FOREGROUND overlay (covers play area, game continues underneath) ----
   const bgFileInput = document.getElementById("bgFileInput");
   const uploadBtn = document.getElementById("uploadBtn");
-  const uploadedPhoto = document.getElementById("uploadedPhoto");
-  let photoActive = false;
+  const photoOverlay = document.getElementById("photoOverlay");
+  const photoOverlayImg = document.getElementById("photoOverlayImg");
 
   function showPhotoOverlay(dataUrl){
-    if(!uploadedPhoto) return;
-    uploadedPhoto.src = dataUrl;
-    uploadedPhoto.style.display = "block";
-    overlay.classList.add("show");
-    overlay.classList.add("photoMode");
-    photoActive = true;
-    setStatus("Photo loaded (foreground). Play continues underneath.");
+    if(!photoOverlay || !photoOverlayImg) return;
+    photoOverlayImg.src = dataUrl;
+    photoOverlay.classList.add("show");
+    photoOverlay.setAttribute("aria-hidden","false");
+    setStatus("Photo overlay on. Play continues underneath.");
   }
 
   function clearPhotoOverlay(){
-    if(!uploadedPhoto) return;
-    uploadedPhoto.src = "";
-    uploadedPhoto.style.display = "none";
-    overlay.classList.remove("photoMode");
-    photoActive = false;
-    // If the overlay was only showing for photo (not final score), hide it.
-    if(!overlay.dataset.finalScoreShowing) if(!overlay.classList.contains("photoMode")) overlay.classList.remove("show");
-    setStatus("Photo cleared.");
+    if(!photoOverlay || !photoOverlayImg) return;
+    photoOverlayImg.src = "";
+    photoOverlay.classList.remove("show");
+    photoOverlay.setAttribute("aria-hidden","true");
+    setStatus("Photo overlay cleared.");
   }
 
   function openPhotoPicker(){
@@ -899,6 +974,171 @@ const endBtn = document.getElementById("endBtn");
       bgFileInput.value = "";
     });
   }
+
+
+  // ---- Voice recording (tap once per word) + word playback on sequence and recall ----
+  const recBtn = document.getElementById("recBtn");
+  const stopRecBtn = document.getElementById("stopRecBtn");
+  const clearRecBtn = document.getElementById("clearRecBtn");
+  const wordCountEl = document.getElementById("wordCount");
+
+  const voice = {
+    recording:false,
+    mediaRecorder:null,
+    stream:null,
+    chunks:[],
+    markers:[],        // ms offsets from start
+    startedAt:0,
+    audioBuffer:null,  // decoded AudioBuffer
+    segments:[]        // [{start,end}] seconds, length = words
+  };
+
+  function setWordCount(n){
+    if(wordCountEl) wordCountEl.textContent = String(n||0);
+  }
+
+  function pickMime(){
+    const mimes = ["audio/mp4","audio/webm;codecs=opus","audio/webm","audio/ogg;codecs=opus"];
+    for(const m of mimes){
+      try{ if(window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(m)) return m; }catch(e){}
+    }
+    return "";
+  }
+
+  async function decodeAndBuildSegments(blob){
+    const ctx = ensureAudio();
+    if(ctx.state === "suspended"){ try{ await ctx.resume(); }catch(e){} }
+    const arr = await blob.arrayBuffer();
+    const buf = await ctx.decodeAudioData(arr.slice(0));
+    voice.audioBuffer = buf;
+
+    const durMs = buf.duration * 1000;
+    const marks = voice.markers
+      .slice()
+      .filter(ms => ms >= 0 && ms <= durMs)
+      .sort((a,b)=>a-b);
+
+    const segs = [];
+    let prev = 0;
+    for(const ms of marks){
+      const s = prev/1000, e = ms/1000;
+      if(e - s > 0.06) segs.push({start:s, end:e});
+      prev = ms;
+    }
+    const lastS = prev/1000;
+    if(buf.duration - lastS > 0.06) segs.push({start:lastS, end: buf.duration});
+
+    voice.segments = segs.length ? segs : [{start:0, end: buf.duration}];
+    setWordCount(voice.segments.length);
+  }
+
+  async function startRecording(){
+    if(!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder){
+      setStatus("Recording not supported on this browser.");
+      return;
+    }
+    try{
+      ensureAudio();
+      const stream = await navigator.mediaDevices.getUserMedia({audio:true});
+      voice.stream = stream;
+      voice.chunks = [];
+      voice.markers = [];
+      voice.audioBuffer = null;
+      voice.segments = [];
+      setWordCount(0);
+
+      const mime = pickMime();
+      const mr = new MediaRecorder(stream, mime ? {mimeType:mime} : undefined);
+      voice.mediaRecorder = mr;
+
+      mr.ondataavailable = (e)=>{ if(e.data && e.data.size) voice.chunks.push(e.data); };
+      mr.onstop = async ()=>{
+        try{ stream.getTracks().forEach(t=>t.stop()); }catch(e){}
+        const blob = new Blob(voice.chunks, { type: mr.mimeType || mime || "audio/webm" });
+        try{
+          await decodeAndBuildSegments(blob);
+          clearRecBtn.disabled = false;
+          setStatus(`Recorded ${voice.segments.length} word(s).`);
+        }catch(e){
+          setStatus("Recorded, but could not decode audio on this device.");
+        }
+      };
+
+      voice.startedAt = performance.now();
+      voice.recording = true;
+      mr.start();
+
+      recBtn?.classList.add("recording");
+      recBtn.disabled = true;
+      stopRecBtn.disabled = false;
+      clearRecBtn.disabled = true;
+
+      setStatus("Recording… tap once per word as you speak.");
+    }catch(e){
+      setStatus("Mic permission denied/unavailable.");
+    }
+  }
+
+  function stopRecording(){
+    if(!voice.recording) return;
+    voice.recording = false;
+    try{ voice.mediaRecorder?.stop(); }catch(e){}
+    recBtn?.classList.remove("recording");
+    recBtn.disabled = false;
+    stopRecBtn.disabled = true;
+  }
+
+  function clearRecording(){
+    voice.recording = false;
+    try{ voice.stream?.getTracks().forEach(t=>t.stop()); }catch(e){}
+    voice.stream = null;
+    voice.mediaRecorder = null;
+    voice.chunks = [];
+    voice.markers = [];
+    voice.audioBuffer = null;
+    voice.segments = [];
+    setWordCount(0);
+    clearRecBtn.disabled = true;
+    setStatus("Voice cleared.");
+  }
+
+  function markWordBoundary(){
+    if(!voice.recording) return;
+    const ms = performance.now() - voice.startedAt;
+    voice.markers.push(ms);
+    setWordCount(voice.markers.length);
+  }
+
+  async function playWord(index){
+    if(!voice.audioBuffer || !voice.segments.length) return;
+    const seg = voice.segments[index % voice.segments.length];
+    const ctx = ensureAudio();
+    if(ctx.state === "suspended"){ try{ await ctx.resume(); }catch(e){} }
+
+    const src = ctx.createBufferSource();
+    src.buffer = voice.audioBuffer;
+    src.connect(ctx.destination);
+
+    const now = ctx.currentTime;
+    const dur = Math.max(0.03, seg.end - seg.start);
+    try{
+      src.start(now, seg.start, dur);
+    }catch(e){
+      try{ src.start(now, seg.start); setTimeout(()=>{ try{ src.stop(); }catch(_){} }, dur*1000); }catch(_){}
+    }
+  }
+
+  recBtn?.addEventListener("click", startRecording);
+  stopRecBtn?.addEventListener("click", stopRecording);
+  clearRecBtn?.addEventListener("click", clearRecording);
+
+  document.addEventListener("click", (e)=>{
+    if(!voice.recording) return;
+    const t = e.target;
+    if(t?.closest?.("button, select, a, input")) return;
+    markWordBoundary();
+  }, {capture:true});
+
 
 function initBackgroundPalette(opts){
     const {
@@ -948,23 +1188,6 @@ function initBackgroundPalette(opts){
       if(saved && BACKGROUND_THEMES[saved]) initial = saved;
     }catch(e){}
     setTheme(initial);
-
-    // Photo swatch at end (opens image picker; long-press clears photo)
-    const photo = document.createElement("button");
-    photo.type = "button";
-    photo.className = "bgSwatch upload";
-    photo.title = "Upload photo background";
-    photo.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20h14v-2H5v2zm7-16l-5 5h3v4h4v-4h3l-5-5z"/></svg>`;
-    photo.setAttribute("role","option");
-    photo.addEventListener("click", () => { openPhotoPicker(); });
-
-    let pressTimer = null;
-    photo.addEventListener("pointerdown", () => { pressTimer = setTimeout(() => { clearPhotoBackground(); }, 650); });
-    photo.addEventListener("pointerup", () => { if(pressTimer) clearTimeout(pressTimer); pressTimer=null; });
-    photo.addEventListener("pointercancel", () => { if(pressTimer) clearTimeout(pressTimer); pressTimer=null; });
-
-    container.appendChild(photo);
-
   return { setTheme };
   }
 
@@ -1126,7 +1349,8 @@ game.classList.add("goldGlow");
       c.el.classList.add("active");
 
       playToneForIndex(c.index, Math.min(190, Math.floor(SHOW_MS*0.30)));
-      await sleep(SHOW_MS);
+            try{ playWord(i); }catch(e){}
+await sleep(SHOW_MS);
 
       // After its turn, keep it on-screen but dimmed (no popping)
       c.el.classList.remove("active");
@@ -1163,7 +1387,8 @@ game.classList.add("goldGlow");
     if (i === expectedIndex) {
       playToneForIndex(circleObj.index, 135);
 
-      circleObj.el.classList.add("glow");
+            try{ playWord(circleObj.index); }catch(e){}
+circleObj.el.classList.add("glow");
       setTimeout(() => circleObj.el?.classList.remove("glow"), 160);
 
       setTimeout(() => circleObj.el?.remove(), 40);
@@ -1214,7 +1439,6 @@ game.classList.add("goldGlow");
   }
 
   function showFinalScore(){
-    overlay.dataset.finalScoreShowing = "1";
     phase = "ended";
     clearBoard();
     scoreEl.textContent = `N = ${maxNThisSession}`;
@@ -1247,17 +1471,15 @@ game.classList.add("goldGlow");
   });
 
   restartFromOverlay.addEventListener("click", () => {
-    overlay.dataset.finalScoreShowing = "";
     // If we are in photoMode, keep overlay shown; otherwise hide it.
-    if(!overlay.classList.contains("photoMode")) if(!overlay.classList.contains("photoMode")) overlay.classList.remove("show");
+    if(!overlay.classList.contains("photoMode")) overlay.classList.remove("show");
     startGame();
   });
 
   function startGame(){
-    overlay.dataset.finalScoreShowing = "";
     ensureAudio();
     lockViewport();
-    if(!overlay.classList.contains("photoMode")) overlay.classList.remove("show");
+    overlay.classList.remove("show");
     runToken++;
     phase = "idle";
     N = 2;
