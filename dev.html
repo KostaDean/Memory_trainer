@@ -508,6 +508,15 @@
     box-shadow: 0 0 0 2px rgba(255,80,80,0.25);
   }
 
+
+  /* Center labels on Stop/Clear */
+  #stopRecBtn, #clearRecBtn{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+  }
+
 </style>
 
 </head>
@@ -1276,7 +1285,8 @@ game.classList.add("goldGlow");
 
   // ---------- Game state ----------
   let N = 2;
-  let phase = "idle"; // idle | showing | recall | transition | ended
+  let phase = "idle";
+  let recallInputLocked = false; // idle | showing | recall | transition | ended
   let expectedIndex = 0;
 
   let circles = [];
@@ -1311,9 +1321,19 @@ game.classList.add("goldGlow");
       rgba(255,255,255,0.55),
       hsl(${h} ${s}% ${l}%))`;
 
-    el.addEventListener("pointerdown", (e) => {
+    el.addEventListener("pointerdown", async (e) => {
       if (phase !== "recall") return;
+      if (recallInputLocked) { e.preventDefault(); return; }
+      recallInputLocked = true;
+
+      // Voice timing override during recall: wait for word to finish before processing click
+      try{
+        await playWord(c.index);
+      }catch(err){}
+
       handleClick(c);
+      // allow next input after this click is processed
+      recallInputLocked = false;
       e.preventDefault();
     });
 
