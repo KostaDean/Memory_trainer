@@ -430,7 +430,10 @@
     opacity:0.9;
   }
 
-      background: rgba(0,0,0,0.18);
+  /* Foreground photo mode: use the existing final-score overlay as a transparent photo display,
+     while allowing gameplay to continue underneath. */
+  #overlay.photoMode{
+    background: rgba(0,0,0,0.18);
     pointer-events: none; /* allow clicks/taps to pass through to circles */
   }
   #overlay.photoMode #panel{
@@ -439,49 +442,6 @@
     backdrop-filter: blur(2px);
     pointer-events: none;
   }
-
-
-  /* Photo overlay (foreground) */
-  #photoOverlay{
-    position:absolute;
-    inset:0;
-    display:none;
-    pointer-events:none; /* let gameplay continue underneath */
-    z-index: 30;
-  }
-  #photoOverlay.show{ display:block; }
-  #photoOverlay::before{
-    content:"";
-    position:absolute; inset:0;
-    background: rgba(0,0,0,0.18);
-  }
-  #photoOverlayImg{
-    position:absolute; inset:0;
-    width:100%; height:100%;
-    object-fit: cover;
-    object-position: center;
-    opacity: 0.92;
-    filter: saturate(1.02) contrast(1.02);
-  }
-
-
-  /* Ensure final score overlay covers the entire play area */
-  #overlay{
-    position:absolute;
-    inset:0;
-  }
-  #overlay.show{
-    display:flex;
-  }
-  #panel{
-    max-height: calc(100% - 24px);
-    overflow:auto;
-  }
-
-
-  /* Voice recording UI */
-  button:disabled{ opacity:0.45; }
-  #recBtn.recording{ border-color: rgba(255,80,80,0.9) !important; box-shadow: 0 0 0 2px rgba(255,80,80,0.25); }
 
 </style>
 
@@ -503,12 +463,6 @@
       <span class="bg-label">Background</span>
       <div id="bgPalette" class="bg-palette" role="listbox" aria-label="Background colors"></div>
           <button id="uploadBtn" class="tune-btn" title="Upload photo (foreground)">Upload</button>
-
-      <button id="recBtn" class="tune-btn" title="Record voice (tap per word)">Record</button>
-      <button id="stopRecBtn" class="tune-btn" title="Stop recording" disabled>Stop</button>
-      <button id="clearRecBtn" class="tune-btn" title="Clear voice" disabled>Clear</button>
-      <span id="wordCountBadge" class="pill" style="display:inline-flex;align-items:center;gap:6px;">Words: <b id="wordCount">0</b></span>
-
     </div>
 
     <div class="tune-wrap" aria-label="Training tuning">
@@ -540,18 +494,16 @@
     <div id="arena"></div>
     <svg id="linesLayer" aria-hidden="true"></svg>
 
-    <div id="photoOverlay" aria-hidden="true">
-      <img id="photoOverlayImg" alt="Uploaded photo" />
-    </div>
-
-
     <div id="overlay" role="dialog" aria-modal="true">
       <div id="panel">
         <h2>Final Score</h2>
-<div id="score">N = 2</div>
+        <div style="margin:10px 0 12px;">
+          <img id="uploadedPhoto" alt="Uploaded photo" style="width:100%; max-height:55vh; object-fit:contain; border-radius:14px; display:none; box-shadow:0 14px 50px rgba(0,0,0,0.45);" />
+        </div>
+        <div id="score">N = 2</div>
         <p>
           This is the <b>highest N</b> you reached in this session.
-          
+          (In Dropbox, you may still need to close the preview tab/window manually.)
         </p>
         <div class="row">
           <button id="restartFromOverlay">Play Again</button>
@@ -617,15 +569,6 @@
     // Safe if audio is blocked; uses the existing AudioContext.
     try{
       const ctx = ensureAudio();
-    // audible confirmation (very short)
-    try{ playToneForIndex(0, 90); 
-    // Voice: play next recorded "word" on each pop during SHOW phase
-    try{
-      if(window.__playNextWord && typeof phase === "string" && (phase.includes("show") || phase.includes("demo"))){
-        window.__playNextWord();
-      }
-    }catch(e){}
-}catch(e){}
       const now = ctx.currentTime;
 
       const notes = [659.25, 783.99, 987.77]; // E5, G5, B5
@@ -789,20 +732,9 @@ const endBtn = document.getElementById("endBtn");
     return audioCtx;
   }
 
-  // iOS audio unlock (first user gesture)
-  window.addEventListener("touchstart", () => { try{ ensureAudio(); }catch(e){} }, { once:true, passive:true });
-
-
   function playToneForIndex(idx, ms=140) {
     const ctx = ensureAudio();
-    
-    // Voice: play next recorded "word" on each pop during SHOW phase
-    try{
-      if(window.__playNextWord && typeof phase === "string" && (phase.includes("show") || phase.includes("demo"))){
-        window.__playNextWord();
-      }
-    }catch(e){}
-const o = ctx.createOscillator();
+    const o = ctx.createOscillator();
     const g = ctx.createGain();
 
     o.frequency.value = NOTE_FREQS[idx % NOTE_FREQS.length];
@@ -905,26 +837,31 @@ const o = ctx.createOscillator();
 
   // Module: renders swatches and manages selection state
   
-  // ---- Upload photo as FOREGROUND overlay (covers play area, game continues underneath) ----
+  // ---- Upload photo as FOREGROUND (displayed in existing Final Score panel) ----
   const bgFileInput = document.getElementById("bgFileInput");
   const uploadBtn = document.getElementById("uploadBtn");
-  const photoOverlay = document.getElementById("photoOverlay");
-  const photoOverlayImg = document.getElementById("photoOverlayImg");
+  const uploadedPhoto = document.getElementById("uploadedPhoto");
+  let photoActive = false;
 
   function showPhotoOverlay(dataUrl){
-    if(!photoOverlay || !photoOverlayImg) return;
-    photoOverlayImg.src = dataUrl;
-    photoOverlay.classList.add("show");
-    photoOverlay.setAttribute("aria-hidden","false");
-    setStatus("Photo overlay on. Play continues underneath.");
+    if(!uploadedPhoto) return;
+    uploadedPhoto.src = dataUrl;
+    uploadedPhoto.style.display = "block";
+    overlay.classList.add("show");
+    overlay.classList.add("photoMode");
+    photoActive = true;
+    setStatus("Photo loaded (foreground). Play continues underneath.");
   }
 
   function clearPhotoOverlay(){
-    if(!photoOverlay || !photoOverlayImg) return;
-    photoOverlayImg.src = "";
-    photoOverlay.classList.remove("show");
-    photoOverlay.setAttribute("aria-hidden","true");
-    setStatus("Photo overlay cleared.");
+    if(!uploadedPhoto) return;
+    uploadedPhoto.src = "";
+    uploadedPhoto.style.display = "none";
+    overlay.classList.remove("photoMode");
+    photoActive = false;
+    // If the overlay was only showing for photo (not final score), hide it.
+    if(!overlay.dataset.finalScoreShowing) if(!overlay.classList.contains("photoMode")) overlay.classList.remove("show");
+    setStatus("Photo cleared.");
   }
 
   function openPhotoPicker(){
@@ -1189,14 +1126,7 @@ game.classList.add("goldGlow");
       c.el.classList.add("active");
 
       playToneForIndex(c.index, Math.min(190, Math.floor(SHOW_MS*0.30)));
-      
-    // Voice: play next recorded "word" on each pop during SHOW phase
-    try{
-      if(window.__playNextWord && typeof phase === "string" && (phase.includes("show") || phase.includes("demo"))){
-        window.__playNextWord();
-      }
-    }catch(e){}
-await sleep(SHOW_MS);
+      await sleep(SHOW_MS);
 
       // After its turn, keep it on-screen but dimmed (no popping)
       c.el.classList.remove("active");
@@ -1233,14 +1163,7 @@ await sleep(SHOW_MS);
     if (i === expectedIndex) {
       playToneForIndex(circleObj.index, 135);
 
-      
-    // Voice: play next recorded "word" on each pop during SHOW phase
-    try{
-      if(window.__playNextWord && typeof phase === "string" && (phase.includes("show") || phase.includes("demo"))){
-        window.__playNextWord();
-      }
-    }catch(e){}
-circleObj.el.classList.add("glow");
+      circleObj.el.classList.add("glow");
       setTimeout(() => circleObj.el?.classList.remove("glow"), 160);
 
       setTimeout(() => circleObj.el?.remove(), 40);
@@ -1291,6 +1214,7 @@ circleObj.el.classList.add("glow");
   }
 
   function showFinalScore(){
+    overlay.dataset.finalScoreShowing = "1";
     phase = "ended";
     clearBoard();
     scoreEl.textContent = `N = ${maxNThisSession}`;
@@ -1323,15 +1247,17 @@ circleObj.el.classList.add("glow");
   });
 
   restartFromOverlay.addEventListener("click", () => {
+    overlay.dataset.finalScoreShowing = "";
     // If we are in photoMode, keep overlay shown; otherwise hide it.
-    if(!overlay.classList.contains("photoMode")) overlay.classList.remove("show");
+    if(!overlay.classList.contains("photoMode")) if(!overlay.classList.contains("photoMode")) overlay.classList.remove("show");
     startGame();
   });
 
   function startGame(){
+    overlay.dataset.finalScoreShowing = "";
     ensureAudio();
     lockViewport();
-    overlay.classList.remove("show");
+    if(!overlay.classList.contains("photoMode")) overlay.classList.remove("show");
     runToken++;
     phase = "idle";
     N = 2;
@@ -1343,193 +1269,6 @@ circleObj.el.classList.add("glow");
 }
 
   startBtn.addEventListener("click", () => startGame());
-
-
-  // ---- Voice recording with per-word tap markers (no speech-to-text) ----
-  const recBtn = document.getElementById("recBtn");
-  const stopRecBtn = document.getElementById("stopRecBtn");
-  const clearRecBtn = document.getElementById("clearRecBtn");
-  const wordCountEl = document.getElementById("wordCount");
-
-  const voice = {
-    recording: false,
-    mediaRecorder: null,
-    chunks: [],
-    markers: [],           // ms offsets from start
-    startedAt: 0,          // performance.now()
-    audioCtx: null,
-    audioBuffer: null,     // decoded
-    segments: [],          // [{start,end}] in seconds
-    segIndex: 0,
-  };
-
-  function updateWordCount(){
-    const remaining = voice.segments.length ? (voice.segments.length - voice.segIndex) : voice.markers.length;
-    if(wordCountEl) wordCountEl.textContent = String(Math.max(0, remaining));
-  }
-
-  async function ensureAudioCtx(){
-    if(!voice.audioCtx){
-      voice.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    }
-    if(voice.audioCtx.state === "suspended"){
-      try{ await voice.audioCtx.resume(); }catch(e){}
-    }
-  }
-
-  function pickMime(){
-    const mimes = ["audio/mp4","audio/webm;codecs=opus","audio/webm","audio/ogg;codecs=opus"];
-    for(const m of mimes){
-      try{
-        if(window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(m)) return m;
-      }catch(e){}
-    }
-    return "";
-  }
-
-  function clearVoice(){
-    voice.chunks = [];
-    voice.markers = [];
-    voice.audioBuffer = null;
-    voice.segments = [];
-    voice.segIndex = 0;
-    updateWordCount();
-    if(clearRecBtn) clearRecBtn.disabled = true;
-    setStatus("Voice cleared.");
-  }
-
-  function resetSegments(){
-    voice.segIndex = 0;
-    updateWordCount();
-  }
-
-  async function buildSegmentsFromMarkers(blob){
-    await ensureAudioCtx();
-    const arrBuf = await blob.arrayBuffer();
-    const audioBuf = await voice.audioCtx.decodeAudioData(arrBuf.slice(0));
-    voice.audioBuffer = audioBuf;
-
-    const durMs = audioBuf.duration * 1000;
-    const marks = voice.markers.slice().filter(x => x >= 0 && x <= durMs).sort((a,b)=>a-b);
-
-    if(marks.length === 0){
-      voice.segments = [{ start: 0, end: audioBuf.duration }];
-      resetSegments();
-      return;
-    }
-
-    const segs = [];
-    let prev = 0;
-    for(const ms of marks){
-      const s = prev/1000, e = ms/1000;
-      if(e - s > 0.06) segs.push({start:s, end:e});
-      prev = ms;
-    }
-    const lastS = prev/1000;
-    if(audioBuf.duration - lastS > 0.06) segs.push({start:lastS, end: audioBuf.duration});
-
-    voice.segments = segs.length ? segs : [{ start: 0, end: audioBuf.duration }];
-    resetSegments();
-  }
-
-  async function startRecording(){
-    if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder){
-      setStatus("Recording not supported on this browser.");
-      return;
-    }
-    const mime = pickMime();
-    try{
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-
-      voice.chunks = [];
-      voice.markers = [];
-      voice.audioBuffer = null;
-      voice.segments = [];
-      voice.segIndex = 0;
-
-      voice.mediaRecorder = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
-      voice.mediaRecorder.ondataavailable = (e)=>{ if(e.data && e.data.size) voice.chunks.push(e.data); };
-      voice.mediaRecorder.onstop = async ()=>{
-        stream.getTracks().forEach(t=>t.stop());
-        const blob = new Blob(voice.chunks, { type: voice.mediaRecorder.mimeType || mime || "audio/webm" });
-        try{
-          await buildSegmentsFromMarkers(blob);
-          if(clearRecBtn) clearRecBtn.disabled = false;
-          setStatus("Recorded. Words: " + voice.segments.length + ". They play one-by-one on pops.");
-        }catch(e){
-          setStatus("Recorded, but could not decode audio here.");
-        }
-      };
-
-      voice.startedAt = performance.now();
-      voice.recording = true;
-      voice.mediaRecorder.start();
-
-      if(recBtn){
-        recBtn.classList.add("recording");
-        recBtn.disabled = true;
-      }
-      if(stopRecBtn) stopRecBtn.disabled = false;
-      if(clearRecBtn) clearRecBtn.disabled = true;
-
-      setStatus("Recording… Tap anywhere (each word) as you speak.");
-      updateWordCount();
-    }catch(e){
-      setStatus("Mic permission denied/unavailable.");
-    }
-  }
-
-  function stopRecording(){
-    if(!voice.recording) return;
-    voice.recording = false;
-    try{ voice.mediaRecorder.stop(); }catch(e){}
-    if(recBtn){
-      recBtn.classList.remove("recording");
-      recBtn.disabled = false;
-    }
-    if(stopRecBtn) stopRecBtn.disabled = true;
-  }
-
-  function markWord(){
-    if(!voice.recording) return;
-    const ms = performance.now() - voice.startedAt;
-    voice.markers.push(ms);
-    if(wordCountEl) wordCountEl.textContent = String(voice.markers.length);
-  }
-
-  async function playNextWord(){
-    if(!voice.audioBuffer || !voice.segments.length) return;
-    if(voice.segIndex >= voice.segments.length) return;
-    await ensureAudioCtx();
-
-    const seg = voice.segments[voice.segIndex];
-    const src = voice.audioCtx.createBufferSource();
-    src.buffer = voice.audioBuffer;
-    src.connect(voice.audioCtx.destination);
-
-    const now = voice.audioCtx.currentTime;
-    const dur = Math.max(0.03, seg.end - seg.start);
-    try{
-      src.start(now, seg.start, dur);
-    }catch(e){
-      try{ src.start(now, seg.start); setTimeout(()=>{ try{ src.stop(); }catch(_){} }, dur*1000); }catch(_){}
-    }
-
-    // "delete" word by consuming it
-    voice.segIndex += 1;
-    updateWordCount();
-  }
-
-  // Bind UI
-  if(recBtn) recBtn.addEventListener("click", startRecording);
-  if(stopRecBtn) stopRecBtn.addEventListener("click", stopRecording);
-  if(clearRecBtn) clearRecBtn.addEventListener("click", clearVoice);
-
-  // Tap anywhere to mark word while recording
-  document.addEventListener("click", ()=>{ if(voice.recording) markWord(); }, {capture:true});
-
-  // Make available for the pop hook
-  window.__playNextWord = playNextWord;
 
 })();
 </script>
