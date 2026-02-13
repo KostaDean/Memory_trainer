@@ -1109,23 +1109,44 @@ const endBtn = document.getElementById("endBtn");
     setWordCount(voice.markers.length);
   }
 
-  async function playWord(index){
-    if(!voice.audioBuffer || !voice.segments.length) return;
+  async async function playWord(index){
+    if(!voice.audioBuffer || !voice.segments.length) return 0;
+
     const seg = voice.segments[index % voice.segments.length];
     const ctx = ensureAudio();
-    if(ctx.state === "suspended"){ try{ await ctx.resume(); }catch(e){} }
 
+    // Small silence padding before/after each word (ms)
+    const PAD_BEFORE = 80;
+    const PAD_AFTER  = 140;
+
+    // iOS: resume audio context on gesture when possible
+    if(ctx.state === "suspended"){
+      try{ await ctx.resume(); }catch(e){}
+    }
+
+    const dur = Math.max(0.03, seg.end - seg.start); // seconds
+
+    // pre-silence
+    await sleep(PAD_BEFORE);
+
+    // play the slice
     const src = ctx.createBufferSource();
     src.buffer = voice.audioBuffer;
     src.connect(ctx.destination);
 
     const now = ctx.currentTime;
-    const dur = Math.max(0.03, seg.end - seg.start);
     try{
       src.start(now, seg.start, dur);
     }catch(e){
-      try{ src.start(now, seg.start); setTimeout(()=>{ try{ src.stop(); }catch(_){} }, dur*1000); }catch(_){}
+      try{
+        src.start(now, seg.start);
+        setTimeout(()=>{ try{ src.stop(); }catch(_){} }, dur*1000);
+      }catch(_){}
     }
+
+    // wait for completion + post-silence
+    await sleep(dur*1000 + PAD_AFTER);
+    return PAD_BEFORE + dur*1000 + PAD_AFTER;
   }
 
   recBtn?.addEventListener("click", startRecording);
@@ -1349,14 +1370,17 @@ game.classList.add("goldGlow");
       c.el.classList.add("active");
 
       playToneForIndex(c.index, Math.min(190, Math.floor(SHOW_MS*0.30)));
-            try{ playWord(i); }catch(e){}
-await sleep(SHOW_MS);
+            let wordMs = 0;
+            try{ wordMs = await playWord(i); }catch(e){}
+            // Word timing overrides the visual pacing so audio stays in sync
+            await sleep(Math.max(SHOW_MS, wordMs));
 
       // After its turn, keep it on-screen but dimmed (no popping)
       c.el.classList.remove("active");
       c.el.classList.add("dim");
 
-      await sleep(GAP_MS);
+      // If voice is active, the word padding already adds spacing
+      await sleep((voice.audioBuffer && voice.segments.length) ? Math.min(60, GAP_MS) : GAP_MS);
     }
 
     // NEW: erase lines before player starts clicking
