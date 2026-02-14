@@ -1092,33 +1092,51 @@ game.classList.add("goldGlow");
 
   function nonOverlappingPlacement(n) {
     const ar = arenaRectInGameCoords();
-    const placed = [];
 
-    for (let i=0; i<n; i++) {
-      let ok = false;
+    // Diagnostic build: use ONLY the final fixed radius everywhere.
+    const R = RECALL_RADIUS;           // Size button controls this
+    const centers = [];
 
-      for (let tries=0; tries<250; tries++) {
-        const rShow = rand(SHOW_RADIUS_MIN, SHOW_RADIUS_MAX);
-        const cx = rand(ar.left + rShow, ar.left + ar.width  - rShow);
-        const cy = rand(ar.top  + rShow, ar.top  + ar.height - rShow);
-        const candidate = { cx, cy, rShow };
+    const BUILD_ATTEMPTS = 80;
+    const MAX_TRIES_PER_CIRCLE = 1600;
 
-        const tooClose = placed.some(p => dist(candidate, p) < (candidate.rShow + p.rShow + PADDING_BETWEEN));
-        if (!tooClose) {
-          ok = true;
-          placed.push({ cx, cy, rShow });
-          break;
+    for (let attempt = 0; attempt < BUILD_ATTEMPTS; attempt++) {
+      centers.length = 0;
+      let ok = true;
+
+      for (let i = 0; i < n; i++) {
+        let placed = false;
+
+        for (let t = 0; t < MAX_TRIES_PER_CIRCLE; t++) {
+          const cx = rand(ar.left + R, ar.left + ar.width  - R);
+          const cy = rand(ar.top  + R, ar.top  + ar.height - R);
+
+          let minD = Infinity;
+          for (let c of centers) {
+            const D = Math.hypot(cx - c.cx, cy - c.cy);
+            if (D < minD) minD = D;
+            if (minD <= 2 * R) break;
+          }
+
+          if (minD > 2 * R) {
+            centers.push({ cx, cy });
+            placed = true;
+            break;
+          }
         }
+
+        if (!placed) { ok = false; break; }
       }
 
-      if (!ok) {
-        const rShow = rand(SHOW_RADIUS_MIN, SHOW_RADIUS_MAX);
-        const cx = rand(ar.left + rShow, ar.left + ar.width  - rShow);
-        const cy = rand(ar.top  + rShow, ar.top  + ar.height - rShow);
-        placed.push({ cx, cy, rShow });
-      }
+      if (ok) break;
     }
-    return placed;
+
+    // IMPORTANT: no overlap should EVER be possible now, since rShow == R as well.
+    return centers.slice(0, n).map(c => ({
+      cx: c.cx,
+      cy: c.cy,
+      rShow: R   // force show radius = final radius
+    }));
   }
 
   async function runRound(token) {
