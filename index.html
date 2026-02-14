@@ -501,7 +501,7 @@
     </div>
 <button id="endBtn" title="End game and show score">End Game</button>
 
-    <div id="level">N = 2</div>
+    <div id="level">N = 2 <span id="wordsInline" style="margin-left:10px; color:var(--muted); font-weight:600;">Words: <span id="wordsInlineCount">0</span></span></div>
 
     <div class="bg-palette-wrap" aria-label="Background">
       <span class="bg-label">Background</span>
@@ -822,6 +822,16 @@ const endBtn = document.getElementById("endBtn");
   function setStatus(s){ statusEl.textContent = s; }
   function setLevel(){ levelEl.textContent = `N = ${N}`; }
 
+  function syncWordsInline(){
+    const inline = document.getElementById("wordsInlineCount");
+    if(!inline) return;
+    // If there is an existing counter element, mirror it; otherwise leave as-is.
+    const wc = document.getElementById("wordsCount") || document.getElementById("wordCount") || document.querySelector('[data-words-count]');
+    if(wc){
+      inline.textContent = (wc.textContent || "0").replace(/[^0-9]/g,"") || "0";
+    }
+  }
+
   // ---------- iOS / anti-jump ----------
   function lockViewport(){
     document.documentElement.style.overflow = "hidden";
@@ -1042,6 +1052,7 @@ game.classList.add("goldGlow");
   let expectedIndex = 0;
 
   let circles = [];
+  let ROUND_RADIUS = null; // locked per round (prevents size-dial mid-round drift)
   let runToken = 0;
 
   let maxNThisSession = 2;
@@ -1093,10 +1104,13 @@ game.classList.add("goldGlow");
   function nonOverlappingPlacement(n) {
     const ar = arenaRectInGameCoords();
 
-    // Diagnostic build: use ONLY the final fixed radius everywhere.
-    const R = RECALL_RADIUS;           // Size button controls this
+    // Final radius is locked per round to prevent drift from the Size dial mid-round.
+    const R = (ROUND_RADIUS ?? RECALL_RADIUS);
+
+    // Only store centers; enforce strict non-overlap at final size.
     const centers = [];
 
+    // Build without any overlap fallback. If we get stuck, restart.
     const BUILD_ATTEMPTS = 80;
     const MAX_TRIES_PER_CIRCLE = 1600;
 
@@ -1111,14 +1125,13 @@ game.classList.add("goldGlow");
           const cx = rand(ar.left + R, ar.left + ar.width  - R);
           const cy = rand(ar.top  + R, ar.top  + ar.height - R);
 
-          let minD = Infinity;
+          let valid = true;
           for (let c of centers) {
             const D = Math.hypot(cx - c.cx, cy - c.cy);
-            if (D < minD) minD = D;
-            if (minD <= 2 * R) break;
+            if (D <= 2 * R) { valid = false; break; }
           }
 
-          if (minD > 2 * R) {
+          if (valid) {
             centers.push({ cx, cy });
             placed = true;
             break;
@@ -1131,11 +1144,11 @@ game.classList.add("goldGlow");
       if (ok) break;
     }
 
-    // IMPORTANT: no overlap should EVER be possible now, since rShow == R as well.
+    // Pop/show size can vary (overlap during show is allowed).
     return centers.slice(0, n).map(c => ({
       cx: c.cx,
       cy: c.cy,
-      rShow: R   // force show radius = final radius
+      rShow: rand(SHOW_RADIUS_MIN, SHOW_RADIUS_MAX)
     }));
   }
 
@@ -1146,8 +1159,10 @@ game.classList.add("goldGlow");
 
     phase = "transition";
     clearBoard();
+    ROUND_RADIUS = RECALL_RADIUS; // lock final radius for this entire round
     syncLinesViewport();
     setLevel();
+    try{ syncWordsInline(); }catch(e){}
 
     setStatus("Get ready…");
     await preRoundCue(token);
@@ -1215,7 +1230,7 @@ game.classList.add("goldGlow");
     expectedIndex = 0;
 
     circles.forEach(c => {
-      setCircleGeometry(c, RECALL_RADIUS);
+      setCircleGeometry(c, (ROUND_RADIUS ?? RECALL_RADIUS));
       c.el.classList.add("visible");
     });
 
@@ -1326,6 +1341,7 @@ game.classList.add("goldGlow");
     maxNThisSession = 2;
     setLevel();
     clearBoard();
+    try{ syncWordsInline(); }catch(e){}
     setStatus("Starting…");
     sleep(120).then(async () => { await goldTransition(runToken); await runRound(runToken); });
 }
