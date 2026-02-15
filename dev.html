@@ -848,6 +848,18 @@ const endBtn = document.getElementById("endBtn");
 
   // ---------- Helpers ----------
   const sleep = (ms) => new Promise(res => setTimeout(res, ms));
+  async function popInflateSettle(el){
+    if(!el) return;
+    // Start tiny (not 0; Safari can glitch at 0)
+    el.style.transform = "scale(0.01)";
+    el.classList.add("visible");
+    await new Promise(r => requestAnimationFrame(() => r()));
+    // Inflate
+    el.style.transform = "scale(1.22)";
+    await sleep(90);
+    // Settle
+    el.style.transform = "scale(1)";
+  }
   const rand  = (a,b) => Math.random()*(b-a)+a;
   const clamp = (v,lo,hi) => Math.max(lo, Math.min(hi, v));
   const shuffle = (arr) => {
