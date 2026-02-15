@@ -1226,6 +1226,9 @@ const endBtn = document.getElementById("endBtn");
   }
   document.addEventListener("pointerdown", (e)=>{ tryMarkFromEvent(e); }, {capture:true});
   document.addEventListener("touchend", (e)=>{ tryMarkFromEvent(e); }, {capture:true, passive:false});
+  // Also attach to game area directly (more reliable on iOS)
+  game.addEventListener("pointerdown", (e)=>{ tryMarkFromEvent(e); }, {capture:true});
+  game.addEventListener("touchend", (e)=>{ tryMarkFromEvent(e); }, {capture:true, passive:false});
 
 
 function initBackgroundPalette(opts){
@@ -1343,11 +1346,6 @@ game.classList.add("goldGlow");
       if (phase !== "recall") return;
       if (recallInputLocked) { e.preventDefault(); return; }
       recallInputLocked = true;
-
-      // Voice timing override during recall: wait for word to finish before processing click
-      try{
-        await playWord(c.index);
-      }catch(err){}
 
       handleClick(c);
       // allow next input after this click is processed
@@ -1570,7 +1568,7 @@ circleObj.el.classList.add("glow");
     scoreEl.textContent = `N = ${maxNThisSession}`;
     overlay.classList.add("show");
     setStatus("Game ended.");
-    levelEl.textContent = `N = ${N}`;
+    setLevel();
   }
 
   function attemptClose(){
