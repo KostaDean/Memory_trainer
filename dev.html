@@ -619,6 +619,26 @@
 
   <input id="bgFileInput" type="file" accept="image/*" style="display:none" />
 <script>
+
+// ULTRA_EARLY_DIAG
+(function(){
+  window.__DIAG_BUF__ = window.__DIAG_BUF__ || [];
+  function push(m){ try{ window.__DIAG_BUF__.push(String(m)); }catch(e){} }
+  push("script start");
+  window.addEventListener("error", function(e){ push("ERROR early: "+e.message+" @"+e.lineno+":"+e.colno); try{ alert("JS ERROR: "+e.message); }catch(_){} });
+  window.addEventListener("unhandledrejection", function(e){ push("PROMISE early: "+String(e.reason)); });
+  function flush(){
+    var box = document.getElementById("diagBox");
+    if(!box) return;
+    var out = window.__DIAG_BUF__.slice().reverse().join("\n");
+    box.textContent = out + (out ? "\n" : "") + box.textContent;
+  }
+  if(document.readyState==="loading"){
+    document.addEventListener("DOMContentLoaded", function(){ push("DOMContentLoaded"); flush(); });
+  } else { push("DOM already ready"); try{ flush(); }catch(e){} }
+  window.__DIAG_PUSH__ = function(m){ push(m); try{ flush(); }catch(e){} };
+})();
+
 (() => {
   const game   = document.getElementById("game");
   const arena  = document.getElementById("arena");
@@ -705,6 +725,8 @@ const endBtn = document.getElementById("endBtn");
     if(!el) return;
     el.innerHTML = "";
     for(let i=0;i<5;i++){
+      try{ window.__DIAG_PUSH__ && window.__DIAG_PUSH__(`show iter i=${i} circles.len=${circles.length}`); }catch(e){}
+
       const d=document.createElement("div");
       d.className="dot";
       el.appendChild(d);
@@ -1476,6 +1498,8 @@ game.classList.add("goldGlow");
 }
 
 async function runRound(token) {
+    try{ window.__DIAG_PUSH__ && window.__DIAG_PUSH__(`enter runRound N=${N} R=${RECALL_RADIUS}`); }catch(e){}
+
     // Reset misses at the start of each round
     missesUsed = 0;
     renderMisses();
