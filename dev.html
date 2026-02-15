@@ -105,7 +105,8 @@
   }
   #playPanel.photoBgActive #game.flashA{ background: rgba(31,47,102,0.32) !important; }
   #playPanel.photoBgActive #game.flashB{ background: rgba(13,22,51,0.38) !important; }
-  #playPanel.photoBgActive .circle{ opacity: 0.90; }
+  #playPanel.photoBgActive .circle{
+    transition: left 120ms ease, top 120ms ease, width 120ms ease, height 120ms ease, transform 120ms ease; opacity: 0.90; }
 
 
   #game.flashA{ background: rgba(31,47,102,0.88); }
@@ -144,6 +145,7 @@
   }
 
   .circle{
+    transition: left 120ms ease, top 120ms ease, width 120ms ease, height 120ms ease, transform 120ms ease;
     box-sizing: border-box;
     box-sizing: border-box;
     position:absolute;
@@ -1484,8 +1486,15 @@ game.classList.add("goldGlow");
 
     circles.forEach(c => {
       makeCircleElement(c);
-      setCircleGeometry(c, c.rShow);
-      c.el.classList.remove("wrong","visible","glow");
+            // Animated pop: inflate past final radius, then settle
+      const R = (ROUND_RADIUS ?? RECALL_RADIUS);
+      setCircleGeometry(c, 0);
+      c.el.classList.add("visible");
+      await sleep(10);
+      setCircleGeometry(c, R * 1.2);
+      await sleep(90);
+      setCircleGeometry(c, R);
+c.el.classList.remove("wrong","visible","glow");
     });
 
     for (let i=0; i<N; i++) {
