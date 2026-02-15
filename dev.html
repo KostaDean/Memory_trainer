@@ -1413,7 +1413,12 @@ game.classList.add("goldGlow");
 
     // Place using final fixed radius (Size dial) so recall circles never overlap.
     // Pop/show circles may overlap; that's OK.
-    const R = (ROUND_RADIUS ?? RECALL_RADIUS);
+    let R = (ROUND_RADIUS ?? RECALL_RADIUS);
+    // Clamp radius so at least one circle fits the arena (prevents stalls when Size is too large)
+    const maxR = Math.max(6, (Math.min(ar.width, ar.height) / 2) - 2);
+    if (R > maxR) R = maxR;
+    // If we had a locked radius, keep it consistent with the clamp
+    if (typeof ROUND_RADIUS !== 'undefined' && ROUND_RADIUS != null) ROUND_RADIUS = R;
     const centers = [];
 
     const BUILD_ATTEMPTS = 80;
@@ -1489,7 +1494,7 @@ async function runRound(token) {
     if (token !== runToken) return;
 
     phase = "showing";
-    setStatus(`Watch the sequence… (${N})`);
+    setStatus(`Watch the sequence… (${circles.length})`);
 
     const colorOrder = shuffle([...COLOR_PALETTE]);
 
@@ -1506,7 +1511,8 @@ async function runRound(token) {
       c.el.classList.remove("wrong","visible","glow");
     });
 
-    for (let i=0; i<N; i++) {
+    const K = circles.length;
+    for (let i=0; i<K; i++) {
       if (token !== runToken) return;
       const c = circles[i];
 
@@ -1601,8 +1607,8 @@ async function runRound(token) {
         if(voice) voice.wordIndex = expectedIndex;
         try{ updateWordCountUI(); }catch(e){}
 
-        if (expectedIndex >= N) onSuccess();
-        else setStatus(`Good! Next: ${expectedIndex + 1} of ${N}.`);
+        if (expectedIndex >= circles.length) onSuccess();
+        else setStatus(`Good! Next: ${expectedIndex + 1} of ${circles.length}.`);
       } finally {
         voiceBusy = false;
       }
