@@ -528,18 +528,14 @@
     60%  { transform: scale(1.22); }
     100% { transform: scale(1); }
   }
-  .circle.pop{
-    animation: popIn 180ms ease-out;
-  }
+  .circle.pop{ animation: popIn 180ms ease-out; }
 </style>
 
 
 </head>
 
 <body>
-<div id="diagBox" style="position:fixed; left:10px; top:70px; z-index:10001; max-width:92%; padding:8px 10px; border-radius:10px; background:rgba(0,0,0,0.75); color:#fff; font:12px/1.25 ui-monospace, SFMono-Regular, Menlo, monospace; white-space:pre-wrap;">DIAG LOADED\n</div>
 <header>
-  <div id="diagBanner" style="position:sticky; top:0; z-index:10000; background:#b00020; color:#fff; font:700 12px/1.2 system-ui; padding:6px 10px; text-align:center;">DIAGNOSTIC BUILD (v15 show-loop)</div>
   <div id="controls">
     <button id="startBtn" class="primary">Play</button>
     
@@ -631,21 +627,6 @@
 
   <input id="bgFileInput" type="file" accept="image/*" style="display:none" />
 <script>
-
-(function(){
-  const box=()=>document.getElementById("diagBox");
-  window.__diag=function(m){ try{ const b=box(); if(!b) return; b.textContent=String(m)+"\n"+b.textContent; }catch(e){} };
-  window.addEventListener("error", (e)=>{ window.__diag(`ERROR: ${e.message} @${e.lineno}:${e.colno}`); });
-  window.addEventListener("unhandledrejection",(e)=>{ window.__diag(`PROMISE: ${String(e.reason)}`); });
-  window.__diag("script start");
-})();
-
-// Define triggerPop globally (diagnostic)
-window.triggerPop = function(el){
-  if(!el) return;
-  try{ el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop'); }catch(e){}
-};
-
 (() => {
   const game   = document.getElementById("game");
   const arena  = document.getElementById("arena");
@@ -1237,7 +1218,6 @@ const endBtn = document.getElementById("endBtn");
           }catch(_e){}
   }
 
-  async function playWord(index){
     return enqueueSpeech(() => _playWordNow(index));
   }
 
@@ -1485,7 +1465,7 @@ game.classList.add("goldGlow");
     }));
   }
 
-  async function runRound(token) { try{window.__diag(`enter runRound N=${N} R=${RECALL_RADIUS}`);}catch(e){}
+  async function runRound(token) {
     // Reset misses at the start of each round
     missesUsed = 0;
     renderMisses();
@@ -1518,7 +1498,7 @@ game.classList.add("goldGlow");
       c.el.classList.remove("wrong","visible","glow");
     });
 
-    for (let i = 0; i < circles.length; i++) { try{window.__diag(`show iter i=${i} len=${circles.length}`);}catch(e){}
+    for (let i = 0; i < circles.length; i++) {
       if (token !== runToken) return;
       const c = circles[i];
 
@@ -1534,7 +1514,7 @@ game.classList.add("goldGlow");
       if (i > 0) drawLine(circles[i-1], c);
 
       c.el.classList.add("visible");
-      window.triggerPop(c.el);
+      triggerPop(c.el);
       c.el.classList.remove("dim");
       c.el.classList.add("active");
 
@@ -1542,7 +1522,6 @@ game.classList.add("goldGlow");
 
       // Voice pacing: if words exist, the spoken word controls timing (with padding).
       // Otherwise use the Timing setting (SHOW_MS/GAP_MS).
-      const didVoice = await playWord(i);
 
       if(!didVoice){
         await sleep(SHOW_MS);
@@ -1595,7 +1574,6 @@ game.classList.add("goldGlow");
 
         // Speak ONLY on the correct click, and wait for it to finish
         try{
-          const didVoice = await playWord(circleObj.index);
           if(!didVoice){
             // no recorded words: tiny pause so UI still feels paced
             await sleep(60);
