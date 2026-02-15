@@ -640,6 +640,12 @@
   window.__diag("script start");
 })();
 
+// Define triggerPop globally (diagnostic)
+window.triggerPop = function(el){
+  if(!el) return;
+  try{ el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop'); }catch(e){}
+};
+
 (() => {
   const game   = document.getElementById("game");
   const arena  = document.getElementById("arena");
@@ -1528,7 +1534,7 @@ game.classList.add("goldGlow");
       if (i > 0) drawLine(circles[i-1], c);
 
       c.el.classList.add("visible");
-      triggerPop(c.el);
+      window.triggerPop(c.el);
       c.el.classList.remove("dim");
       c.el.classList.add("active");
 
