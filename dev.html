@@ -511,7 +511,7 @@
 
 
   /* Center labels on Stop/Clear */
-  #stopRecBtn, #clearRecBtn{
+  #stopRecBtn, #clearRecBtn, #markRecBtn{
     display:flex;
     align-items:center;
     justify-content:center;
@@ -532,7 +532,7 @@
     </div>
 <button id="endBtn" title="End game and show score">End Game</button>
 
-    <div id="level">N = 2 <span class="pill" style="margin-left:10px;">Words: <b id="wordCount">0</b></span></div>
+    <div id="level"><span class="pill">N = <b id="nVal">2</b></span> <span class="pill" style="margin-left:10px;">Words: <b id="wordCount">0</b></span></div>
 
     <div class="bg-palette-wrap" aria-label="Background">
       <span class="bg-label">Background</span>
@@ -543,6 +543,7 @@
       <button id="recBtn" class="tune-btn wide" title="Record voice (tap once per word as you speak)">Record</button>
       <button id="stopRecBtn" class="tune-btn" title="Stop recording" disabled>Stop</button>
       <button id="clearRecBtn" class="tune-btn" title="Clear recording" disabled>Clear</button>
+<button id="markRecBtn" class="tune-btn" title="Mark word boundary (use if screen taps miss)" disabled>Mark</button>
 </div>
 </div>
 
@@ -857,7 +858,7 @@ const endBtn = document.getElementById("endBtn");
   const dist  = (a,b) => Math.hypot(a.cx-b.cx, a.cy-b.cy);
 
   function setStatus(s){ statusEl.textContent = s; }
-  function setLevel(){ levelEl.textContent = `N = ${N}`; }
+  function setLevel(){ const nEl=document.getElementById("nVal"); if(nEl) nEl.textContent = String(N); }
 
   // ---------- iOS / anti-jump ----------
   function lockViewport(){
@@ -989,6 +990,7 @@ const endBtn = document.getElementById("endBtn");
   const recBtn = document.getElementById("recBtn");
   const stopRecBtn = document.getElementById("stopRecBtn");
   const clearRecBtn = document.getElementById("clearRecBtn");
+  const markRecBtn  = document.getElementById("markRecBtn");
   const wordCountEl = document.getElementById("wordCount");
 
   const voice = {
@@ -1081,6 +1083,7 @@ const endBtn = document.getElementById("endBtn");
       recBtn.disabled = true;
       stopRecBtn.disabled = false;
       clearRecBtn.disabled = true;
+      if(markRecBtn) markRecBtn.disabled = false;
 
       setStatus("Recording… tap once per word as you speak.");
     }catch(e){
@@ -1089,12 +1092,13 @@ const endBtn = document.getElementById("endBtn");
   }
 
   function stopRecording(){
-    if(!voice.recording) return;
+    if(!isRecordingActive()) return;
     voice.recording = false;
     try{ voice.mediaRecorder?.stop(); }catch(e){}
     recBtn?.classList.remove("recording");
     recBtn.disabled = false;
     stopRecBtn.disabled = true;
+    if(markRecBtn) markRecBtn.disabled = true;
   }
 
   function clearRecording(){
@@ -1108,11 +1112,12 @@ const endBtn = document.getElementById("endBtn");
     voice.segments = [];
     setWordCount(0);
     clearRecBtn.disabled = true;
+    if(markRecBtn) markRecBtn.disabled = true;
     setStatus("Voice cleared.");
   }
 
   function markWordBoundary(){
-    if(!voice.recording) return;
+    if(!isRecordingActive()) return;
     const ms = performance.now() - voice.startedAt;
     voice.markers.push(ms);
     setWordCount(voice.markers.length);
@@ -1202,13 +1207,25 @@ const endBtn = document.getElementById("endBtn");
   recBtn?.addEventListener("click", startRecording);
   stopRecBtn?.addEventListener("click", stopRecording);
   clearRecBtn?.addEventListener("click", clearRecording);
+  markRecBtn?.addEventListener("click", (e)=>{ e.preventDefault(); if(isRecordingActive()) markWordBoundary(); });
 
-  document.addEventListener("click", (e)=>{
-    if(!voice.recording) return;
+    // Reliable word delimiting on iOS: use pointerdown/touchend (click can be suppressed by preventDefault).
+  function isRecordingActive(){
+    // Record tapped and Stop not yet tapped
+    return !!(voice && voice.recording && stopRecBtn && !stopRecBtn.disabled);
+  }
+
+  function shouldIgnoreMarkTarget(t){
+    return !!(t && (t.closest?.("button, select, a, input") || t.closest?.(".circle") || t.closest?.("#overlay")));
+  }
+  function tryMarkFromEvent(e){
+    if(!isRecordingActive()) return;
     const t = e.target;
-    if(t?.closest?.("button, select, a, input")) return;
+    if(shouldIgnoreMarkTarget(t)) return;
     markWordBoundary();
-  }, {capture:true});
+  }
+  document.addEventListener("pointerdown", (e)=>{ tryMarkFromEvent(e); }, {capture:true});
+  document.addEventListener("touchend", (e)=>{ tryMarkFromEvent(e); }, {capture:true, passive:false});
 
 
 function initBackgroundPalette(opts){
