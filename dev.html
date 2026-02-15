@@ -105,8 +105,7 @@
   }
   #playPanel.photoBgActive #game.flashA{ background: rgba(31,47,102,0.32) !important; }
   #playPanel.photoBgActive #game.flashB{ background: rgba(13,22,51,0.38) !important; }
-  #playPanel.photoBgActive .circle{
-    transition: left 120ms ease, top 120ms ease, width 120ms ease, height 120ms ease, transform 120ms ease; opacity: 0.90; }
+  #playPanel.photoBgActive .circle{ opacity: 0.90; }
 
 
   #game.flashA{ background: rgba(31,47,102,0.88); }
@@ -145,7 +144,6 @@
   }
 
   .circle{
-    transition: left 120ms ease, top 120ms ease, width 120ms ease, height 120ms ease, transform 120ms ease;
     box-sizing: border-box;
     box-sizing: border-box;
     position:absolute;
@@ -1486,15 +1484,8 @@ game.classList.add("goldGlow");
 
     circles.forEach(c => {
       makeCircleElement(c);
-            // Animated pop: inflate past final radius, then settle
-      const R = (ROUND_RADIUS ?? RECALL_RADIUS);
-      setCircleGeometry(c, 0);
-      c.el.classList.add("visible");
-      await sleep(10);
-      setCircleGeometry(c, R * 1.2);
-      await sleep(90);
-      setCircleGeometry(c, R);
-c.el.classList.remove("wrong","visible","glow");
+      setCircleGeometry(c, (ROUND_RADIUS ?? RECALL_RADIUS));
+      c.el.classList.remove("wrong","visible","glow");
     });
 
     for (let i=0; i<N; i++) {
@@ -1512,7 +1503,7 @@ c.el.classList.remove("wrong","visible","glow");
       // Draw the line from previous to current (center-to-center)
       if (i > 0) drawLine(circles[i-1], c);
 
-      c.el.classList.add("visible");
+      await popInflateSettle(c.el);
       c.el.classList.remove("dim");
       c.el.classList.add("active");
 
@@ -1551,6 +1542,7 @@ c.el.classList.remove("wrong","visible","glow");
 
     circles.forEach(c => {
       setCircleGeometry(c, (ROUND_RADIUS ?? RECALL_RADIUS));
+      c.el.style.transform = "scale(1)";
       c.el.classList.add("visible");
     });
 
