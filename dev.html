@@ -96,7 +96,7 @@
     border-radius:18px;
     overflow:hidden;
     box-shadow: 0 20px 70px rgba(0,0,0,0.35);
-    transition: background 160ms ease, box-shadow 220ms ease;
+    transition: background 160ms ease, box-shadow 220ms ease, transform 140ms ease;
   }
 
   /* When photo background is active, make the play panel transparent so the photo shows through */
@@ -1456,7 +1456,24 @@ game.classList.add("goldGlow");
     }));
   }
 
-  async function runRound(token) {
+  function popPulse(el){
+  return new Promise((resolve)=>{
+    if(!el){ resolve(); return; }
+    try{
+      el.style.transform = "scale(0.01)";
+      requestAnimationFrame(()=>{
+        el.style.transform = "scale(1.22)";
+        setTimeout(()=>{
+          el.style.transform = "scale(1)";
+          setTimeout(resolve, 140);
+        }, 90);
+      });
+    }catch(e){ resolve(); }
+    setTimeout(resolve, 600);
+  });
+}
+
+async function runRound(token) {
     // Reset misses at the start of each round
     missesUsed = 0;
     renderMisses();
@@ -1504,7 +1521,6 @@ game.classList.add("goldGlow");
       // Draw the line from previous to current (center-to-center)
       if (i > 0) drawLine(circles[i-1], c);
 
-      c.el.style.transform = "scale(1)";
       c.el.classList.add("visible");
       await popPulse(c.el);
       c.el.classList.remove("dim");
@@ -1545,7 +1561,6 @@ game.classList.add("goldGlow");
 
     circles.forEach(c => {
       setCircleGeometry(c, (ROUND_RADIUS ?? RECALL_RADIUS));
-      c.el.style.transform = "scale(1)";
       c.el.classList.add("visible");
     });
 
