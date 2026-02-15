@@ -1516,23 +1516,28 @@ async function runRound(token) {
 
     phase = "showing";
     setStatus(`Watch the sequence… (${N})`);
+    try{ window.__DIAG_PUSH__ && window.__DIAG_PUSH__("after status watch"); }catch(e){}
 
     const colorOrder = shuffle([...COLOR_PALETTE]);
 
-    circles = nonOverlappingPlacement(N).map((pos, i) => {
+        try{ window.__DIAG_PUSH__ && window.__DIAG_PUSH__(`before placement call N=${N} R=${(ROUND_RADIUS ?? RECALL_RADIUS)}`); }catch(e){}
+circles = nonOverlappingPlacement(N).map((pos, i) => {
       const color = colorOrder[i % colorOrder.length];
       const freq  = NOTE_FREQS[i % NOTE_FREQS.length];
       const wave  = WAVEFORMS[i % WAVEFORMS.length];
       return { ...pos, index:i, color, freq, wave, el:null };
     });
 
-    circles.forEach(c => {
+        try{ window.__DIAG_PUSH__ && window.__DIAG_PUSH__(`after placement circles.len=${circles.length}`); }catch(e){}
+circles.forEach(c => {
       makeCircleElement(c);
       setCircleGeometry(c, c.rShow);
       c.el.classList.remove("wrong","visible","glow");
     });
 
     for (let i = 0; i < circles.length; i++) {
+      try{ window.__DIAG_PUSH__ && window.__DIAG_PUSH__(`show loop i=${i} circles.len=${circles.length}`); }catch(e){}
+
       diag(`show i=${i} circles.len=${circles.length}`);
 
       if (token !== runToken) return;
