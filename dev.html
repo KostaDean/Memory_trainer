@@ -1010,6 +1010,10 @@ const endBtn = document.getElementById("endBtn");
 
   // Serialize speech so timing stays in sync
   let speechQueue = Promise.resolve();
+  let lastMarkTs = 0;
+
+  let voiceBusy = false; // prevents processing next click before voice finishes
+
   function enqueueSpeech(fn){
     speechQueue = speechQueue.then(fn, fn);
     return speechQueue;
@@ -1128,6 +1132,9 @@ const endBtn = document.getElementById("endBtn");
   }
 
   function markWordBoundary(){
+    const now = Date.now();
+    if (now - lastMarkTs < 250) return; // debounce double-fired tap
+    lastMarkTs = now;
     if(!isRecordingActive()) return;
     const ms = performance.now() - voice.startedAt;
     voice.markers.push(ms);
