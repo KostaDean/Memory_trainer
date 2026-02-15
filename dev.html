@@ -144,6 +144,7 @@
   }
 
   .circle{
+    box-sizing: border-box;
     position:absolute;
     border-radius:50%;
     border:2px solid rgba(255,255,255,0.22);
@@ -510,7 +511,7 @@
 
 
   /* Center labels on Stop/Clear */
-  #stopRecBtn, #clearRecBtn, #markRecBtn{
+  #stopRecBtn, #clearRecBtn{
     display:flex;
     align-items:center;
     justify-content:center;
@@ -531,7 +532,7 @@
     </div>
 <button id="endBtn" title="End game and show score">End Game</button>
 
-    <div id="level">N = 2</div>
+    <div id="level">N = 2 <span class="pill" style="margin-left:10px;">Words: <b id="wordCount">0</b></span></div>
 
     <div class="bg-palette-wrap" aria-label="Background">
       <span class="bg-label">Background</span>
@@ -542,9 +543,7 @@
       <button id="recBtn" class="tune-btn wide" title="Record voice (tap once per word as you speak)">Record</button>
       <button id="stopRecBtn" class="tune-btn" title="Stop recording" disabled>Stop</button>
       <button id="clearRecBtn" class="tune-btn" title="Clear recording" disabled>Clear</button>
-      <button id="markRecBtn" class="tune-btn" title="Mark word boundary (tap per word)" disabled>Mark</button>
-      <span class="pill">Words: <b id="wordCount">0</b></span>
-    </div>
+</div>
 </div>
 
     <div class="tune-wrap" aria-label="Training tuning">
@@ -1291,6 +1290,7 @@ game.classList.add("goldGlow");
   let expectedIndex = 0;
 
   let circles = [];
+  let ROUND_RADIUS = null; // locked per round to prevent size-dial drift
   let runToken = 0;
 
   let maxNThisSession = 2;
@@ -1351,33 +1351,50 @@ game.classList.add("goldGlow");
 
   function nonOverlappingPlacement(n) {
     const ar = arenaRectInGameCoords();
-    const placed = [];
 
-    for (let i=0; i<n; i++) {
-      let ok = false;
+    // Place using final fixed radius (Size dial) so recall circles never overlap.
+    // Pop/show circles may overlap; that's OK.
+    const R = (ROUND_RADIUS ?? RECALL_RADIUS);
+    const centers = [];
 
-      for (let tries=0; tries<250; tries++) {
-        const rShow = rand(SHOW_RADIUS_MIN, SHOW_RADIUS_MAX);
-        const cx = rand(ar.left + rShow, ar.left + ar.width  - rShow);
-        const cy = rand(ar.top  + rShow, ar.top  + ar.height - rShow);
-        const candidate = { cx, cy, rShow };
+    const BUILD_ATTEMPTS = 80;
+    const MAX_TRIES_PER_CIRCLE = 1600;
 
-        const tooClose = placed.some(p => dist(candidate, p) < (candidate.rShow + p.rShow + PADDING_BETWEEN));
-        if (!tooClose) {
-          ok = true;
-          placed.push({ cx, cy, rShow });
-          break;
+    for (let attempt = 0; attempt < BUILD_ATTEMPTS; attempt++) {
+      centers.length = 0;
+      let ok = true;
+
+      for (let i = 0; i < n; i++) {
+        let placed = false;
+
+        for (let t = 0; t < MAX_TRIES_PER_CIRCLE; t++) {
+          const cx = rand(ar.left + R, ar.left + ar.width  - R);
+          const cy = rand(ar.top  + R, ar.top  + ar.height - R);
+
+          let valid = true;
+          for (let c of centers) {
+            const D = Math.hypot(cx - c.cx, cy - c.cy);
+            if (D <= 2 * R) { valid = false; break; }
+          }
+
+          if (valid) {
+            centers.push({ cx, cy });
+            placed = true;
+            break;
+          }
         }
+
+        if (!placed) { ok = false; break; }
       }
 
-      if (!ok) {
-        const rShow = rand(SHOW_RADIUS_MIN, SHOW_RADIUS_MAX);
-        const cx = rand(ar.left + rShow, ar.left + ar.width  - rShow);
-        const cy = rand(ar.top  + rShow, ar.top  + ar.height - rShow);
-        placed.push({ cx, cy, rShow });
-      }
+      if (ok) break;
     }
-    return placed;
+
+    return centers.slice(0, n).map(c => ({
+      cx: c.cx,
+      cy: c.cy,
+      rShow: rand(SHOW_RADIUS_MIN, SHOW_RADIUS_MAX)
+    }));
   }
 
   async function runRound(token) {
@@ -1389,6 +1406,7 @@ game.classList.add("goldGlow");
     clearBoard();
     syncLinesViewport();
     setLevel();
+    ROUND_RADIUS = RECALL_RADIUS; // lock radius for this round
 
     setStatus("Get ready…");
     await preRoundCue(token);
@@ -1465,7 +1483,7 @@ game.classList.add("goldGlow");
     expectedIndex = 0;
 
     circles.forEach(c => {
-      setCircleGeometry(c, RECALL_RADIUS);
+      setCircleGeometry(c, (ROUND_RADIUS ?? RECALL_RADIUS));
       c.el.classList.add("visible");
     });
 
