@@ -145,6 +145,7 @@
 
   .circle{
     box-sizing: border-box;
+    box-sizing: border-box;
     position:absolute;
     border-radius:50%;
     border:2px solid rgba(255,255,255,0.22);
@@ -530,11 +531,12 @@
     <div id="missBar" class="missBar" title="Mistakes allowed (resets each round)">
       <span class="missDot"></span><span class="missDot"></span><span class="missDot"></span>
     </div>
-<button id="endBtn" title="End game and show score">End Game</button>
+<button id="endBtn" title="End game and show score">End</button>
+
+    
 
     <div id="level"><span class="pill">N = <b id="nVal">2</b></span> <span class="pill" style="margin-left:10px;">Words: <b id="wordCount">0</b></span></div>
-
-    <div class="bg-palette-wrap" aria-label="Background">
+<div class="bg-palette-wrap" aria-label="Background">
       <span class="bg-label">Background</span>
       <div id="bgPalette" class="bg-palette" role="listbox" aria-label="Background colors"></div>
 
@@ -900,10 +902,12 @@ const endBtn = document.getElementById("endBtn");
   const _isInteractive = (t) => !!(t && (t.closest?.(".circle") || t.closest?.("button") || t.closest?.("select")));
 
   document.addEventListener("touchstart", (e) => {
+    if (typeof voice !== "undefined" && voice && voice.recording) return;
     if (phase !== "idle" && !_isInteractive(e.target)) e.preventDefault();
   }, { passive:false });
 
   document.addEventListener("touchend", (e) => {
+    if (typeof voice !== "undefined" && voice && voice.recording) return;
     if (phase !== "idle" && !_isInteractive(e.target)) e.preventDefault();
   }, { passive:false });
 
@@ -1003,6 +1007,13 @@ const endBtn = document.getElementById("endBtn");
     audioBuffer:null,  // decoded AudioBuffer
     segments:[]        // [{start,end}] seconds, length = words
   };
+
+  // Serialize speech so timing stays in sync
+  let speechQueue = Promise.resolve();
+  function enqueueSpeech(fn){
+    speechQueue = speechQueue.then(fn, fn);
+    return speechQueue;
+  }
 
   function setWordCount(n){
     if(wordCountEl) wordCountEl.textContent = String(n||0);
@@ -1226,6 +1237,8 @@ const endBtn = document.getElementById("endBtn");
   }
   document.addEventListener("pointerdown", (e)=>{ tryMarkFromEvent(e); }, {capture:true});
   document.addEventListener("touchend", (e)=>{ tryMarkFromEvent(e); }, {capture:true, passive:false});
+  game.addEventListener("pointerup", (e)=>{ tryMarkFromEvent(e); }, {capture:true});
+  game.addEventListener("touchend", (e)=>{ tryMarkFromEvent(e); }, {capture:true, passive:false});
   // Also attach to game area directly (more reliable on iOS)
   game.addEventListener("pointerdown", (e)=>{ tryMarkFromEvent(e); }, {capture:true});
   game.addEventListener("touchend", (e)=>{ tryMarkFromEvent(e); }, {capture:true, passive:false});
@@ -1591,10 +1604,10 @@ circleObj.el.classList.add("glow");
   });
 
   closeFromOverlay.addEventListener("click", () => {
-    attemptClose();
+    overlay.classList.remove("show");
+    setStatus("Score panel closed.");
   });
-
-  restartFromOverlay.addEventListener("click", () => {
+restartFromOverlay.addEventListener("click", () => {
     // If we are in photoMode, keep overlay shown; otherwise hide it.
     if(!overlay.classList.contains("photoMode")) overlay.classList.remove("show");
     startGame();
