@@ -105,7 +105,8 @@
   }
   #playPanel.photoBgActive #game.flashA{ background: rgba(31,47,102,0.32) !important; }
   #playPanel.photoBgActive #game.flashB{ background: rgba(13,22,51,0.38) !important; }
-  #playPanel.photoBgActive .circle{ opacity: 0.90; }
+  #playPanel.photoBgActive .circle{
+    box-sizing: border-box; opacity: 0.90; }
 
 
   #game.flashA{ background: rgba(31,47,102,0.88); }
@@ -144,6 +145,7 @@
   }
 
   .circle{
+    box-sizing: border-box;
     position:absolute;
     border-radius:50%;
     border:2px solid rgba(255,255,255,0.22);
@@ -538,6 +540,8 @@
     <div id="arena"></div>
     <svg id="linesLayer" aria-hidden="true"></svg>
 
+    <div id="debugBox" style="position:absolute; left:10px; top:10px; z-index:40; font:12px/1.25 ui-monospace, SFMono-Regular, Menlo, monospace; color:#fff; background:rgba(0,0,0,0.45); padding:8px 10px; border-radius:10px; border:1px solid rgba(255,255,255,0.18); max-width:92%; white-space:pre-wrap; display:none;"></div>
+
     <div id="photoOverlay" aria-hidden="true">
       <img id="photoOverlayImg" alt="Uploaded photo" />
     </div>
@@ -705,6 +709,56 @@ const endBtn = document.getElementById("endBtn");
   const closeFromOverlay = document.getElementById("closeFromOverlay");
 
   const linesLayer = document.getElementById("linesLayer");
+
+
+  // ---------- Debug (overlap diagnostics) ----------
+  let DBG = true; // set false to hide
+  const debugBox = document.getElementById("debugBox");
+  function setDebug(text){
+    if(!debugBox) return;
+    if(!DBG){ debugBox.style.display="none"; return; }
+    debugBox.style.display="block";
+    debugBox.textContent = text;
+  }
+
+  function effectiveRadiusPx(R){
+    // Conservative max scale used by CSS during animations (active uses 1.03)
+    const maxScale = 1.03;
+    return R * maxScale;
+  }
+
+  function checkOverlaps(stageLabel){
+    if(!DBG) return;
+    const R = (ROUND_RADIUS ?? RECALL_RADIUS);
+    let minD = Infinity;
+    let pair = null;
+
+    for(let i=0;i<circles.length;i++){
+      for(let j=i+1;j<circles.length;j++){
+        const a=circles[i], b=circles[j];
+        const D = Math.hypot(a.cx-b.cx, a.cy-b.cy);
+        if(D < minD){ minD = D; pair = [i,j]; }
+      }
+    }
+
+    const Reff = effectiveRadiusPx(R);
+    const thresh = 2*Reff;
+
+    let msg = `${stageLabel}\n` +
+              `N=${N}  ROUND_RADIUS=${R.toFixed(2)}  Reff≈${Reff.toFixed(2)}  thresh≈${thresh.toFixed(2)}\n` +
+              `min center distance=${(isFinite(minD)?minD.toFixed(2):"n/a")}`;
+
+    if(pair){
+      msg += `  (pair ${pair[0]+1},${pair[1]+1})\n`;
+      msg += (minD < thresh)
+        ? `⚠️ OVERLAP LIKELY: minD < thresh\n`
+        : `✅ spacing OK: minD ≥ thresh\n`;
+    }else{
+      msg += `\n`;
+    }
+
+    setDebug(msg);
+  }
 
   function clearLines(){
     while (linesLayer.firstChild) linesLayer.removeChild(linesLayer.firstChild);
@@ -1180,6 +1234,8 @@ game.classList.add("goldGlow");
       return { ...pos, index:i, color, freq, wave, el:null };
     });
 
+    checkOverlaps("after placement (before DOM)");
+
     circles.forEach(c => {
       makeCircleElement(c);
       setCircleGeometry(c, c.rShow);
@@ -1189,6 +1245,19 @@ game.classList.add("goldGlow");
     for (let i=0; i<N; i++) {
       if (token !== runToken) return;
       const c = circles[i];
+
+      // Debug: min distance from this circle to any previous circle center
+      if(DBG){
+        let dminPop = Infinity;
+        for(let k=0;k<i;k++){
+          const p = circles[k];
+          const D = Math.hypot(c.cx-p.cx, c.cy-p.cy);
+          if(D < dminPop) dminPop = D;
+        }
+        const R = (ROUND_RADIUS ?? RECALL_RADIUS);
+        setDebug(`pop ${i+1}/${N}\nROUND_RADIUS=${R.toFixed(2)}\nminD to previous=${(isFinite(dminPop)?dminPop.toFixed(2):'n/a')}`);
+      }
+
 
       // Keep already-shown circles on-screen (dim), highlight current one.
       for (let j=0; j<i; j++){
@@ -1233,6 +1302,7 @@ game.classList.add("goldGlow");
       setCircleGeometry(c, (ROUND_RADIUS ?? RECALL_RADIUS));
       c.el.classList.add("visible");
     });
+    checkOverlaps("recall render");
 
     setStatus(`Your turn: click in order (1 → ${N}).`);
   }
