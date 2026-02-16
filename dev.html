@@ -105,10 +105,7 @@
   }
   #playPanel.photoBgActive #game.flashA{ background: rgba(31,47,102,0.32) !important; }
   #playPanel.photoBgActive #game.flashB{ background: rgba(13,22,51,0.38) !important; }
-  #playPanel.photoBgActive .circle{
-    box-sizing: border-box;
-    transform-origin: center center;
- opacity: 0.90; }
+  #playPanel.photoBgActive .circle{ opacity: 0.90; }
 
 
   #game.flashA{ background: rgba(31,47,102,0.88); }
@@ -522,15 +519,7 @@
     text-align:center;
   }
 
-
-  @keyframes popIn{
-    0%   { transform: scale(0.01); }
-    60%  { transform: scale(1.22); }
-    100% { transform: scale(1); }
-  }
-  .circle.pop{ animation: popIn 180ms ease-out; }
 </style>
-
 
 </head>
 
@@ -1218,6 +1207,7 @@ const endBtn = document.getElementById("endBtn");
           }catch(_e){}
   }
 
+  async function playWord(index){
     return enqueueSpeech(() => _playWordNow(index));
   }
 
@@ -1498,7 +1488,7 @@ game.classList.add("goldGlow");
       c.el.classList.remove("wrong","visible","glow");
     });
 
-    for (let i = 0; i < circles.length; i++) {
+    for (let i=0; i<N; i++) {
       if (token !== runToken) return;
       const c = circles[i];
 
@@ -1514,7 +1504,6 @@ game.classList.add("goldGlow");
       if (i > 0) drawLine(circles[i-1], c);
 
       c.el.classList.add("visible");
-      triggerPop(c.el);
       c.el.classList.remove("dim");
       c.el.classList.add("active");
 
@@ -1522,6 +1511,7 @@ game.classList.add("goldGlow");
 
       // Voice pacing: if words exist, the spoken word controls timing (with padding).
       // Otherwise use the Timing setting (SHOW_MS/GAP_MS).
+      const didVoice = await playWord(i);
 
       if(!didVoice){
         await sleep(SHOW_MS);
@@ -1574,6 +1564,7 @@ game.classList.add("goldGlow");
 
         // Speak ONLY on the correct click, and wait for it to finish
         try{
+          const didVoice = await playWord(circleObj.index);
           if(!didVoice){
             // no recorded words: tiny pause so UI still feels paced
             await sleep(60);
