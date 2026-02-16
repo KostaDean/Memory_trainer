@@ -96,7 +96,7 @@
     border-radius:18px;
     overflow:hidden;
     box-shadow: 0 20px 70px rgba(0,0,0,0.35);
-    transition: background 160ms ease, box-shadow 220ms ease;
+    transition: background 160ms ease, box-shadow 220ms ease, transform 160ms ease;
   }
 
   /* When photo background is active, make the play panel transparent so the photo shows through */
@@ -998,6 +998,7 @@ const endBtn = document.getElementById("endBtn");
   const wordCountEl = document.getElementById("wordCount");
 
   const voice = {
+    wordIndex:0,       // how many words have been spoken in current recall
     recording:false,
     mediaRecorder:null,
     stream:null,
@@ -1019,8 +1020,22 @@ const endBtn = document.getElementById("endBtn");
     return speechQueue;
   }
 
+    function updateWordCountUI(){
+    if(!wordCountEl) return;
+    const total = (voice && Array.isArray(voice.segments)) ? voice.segments.length : 0;
+    const spoken = (voice && typeof voice.wordIndex === "number") ? voice.wordIndex : 0;
+    if(voice && voice.recording){
+      wordCountEl.textContent = String(total);
+    } else {
+      if(total > 0) wordCountEl.textContent = `${spoken}/${total}`;
+      else wordCountEl.textContent = "0";
+    }
+  }
+
   function setWordCount(n){
-    if(wordCountEl) wordCountEl.textContent = String(n||0);
+    // backward compatible: set total (recorded) count directly
+    if(!wordCountEl) return;
+    wordCountEl.textContent = String(n||0);
   }
 
   function pickMime(){
@@ -1072,6 +1087,8 @@ const endBtn = document.getElementById("endBtn");
       voice.audioBuffer = null;
       voice.segments = [];
       setWordCount(0);
+    voice.wordIndex = 0;
+    updateWordCountUI();
 
       const mime = pickMime();
       const mr = new MediaRecorder(stream, mime ? {mimeType:mime} : undefined);
@@ -1109,6 +1126,7 @@ const endBtn = document.getElementById("endBtn");
   function stopRecording(){
     if(!isRecordingActive()) return;
     voice.recording = false;
+    updateWordCountUI();
     try{ voice.mediaRecorder?.stop(); }catch(e){}
     recBtn?.classList.remove("recording");
     recBtn.disabled = false;
@@ -1126,6 +1144,7 @@ const endBtn = document.getElementById("endBtn");
     voice.audioBuffer = null;
     voice.segments = [];
     setWordCount(0);
+    updateWordCountUI();
     clearRecBtn.disabled = true;
     if(markRecBtn) markRecBtn.disabled = true;
     setStatus("Voice cleared.");
@@ -1139,7 +1158,8 @@ const endBtn = document.getElementById("endBtn");
     const ms = performance.now() - voice.startedAt;
     voice.markers.push(ms);
     setWordCount(voice.markers.length);
-  }
+      updateWordCountUI();
+}
 
   const WORD_PAD_BEFORE_MS = 90;
   const WORD_PAD_AFTER_MS  = 140;
@@ -1147,8 +1167,7 @@ const endBtn = document.getElementById("endBtn");
   function hasVoiceWords(){
     return !!(voice.audioBuffer && voice.segments && voice.segments.length);
   }
-
-  async function playWord(index){
+  async function _playWordNow(index){
     // Plays the slice for the given word index.
     // Returns true if a word was played, false otherwise.
     if(!hasVoiceWords()) return false;
@@ -1186,7 +1205,11 @@ const endBtn = document.getElementById("endBtn");
             src.start(now, seg.start);
             setTimeout(()=>{ try{ src.stop(); }catch(_e){} }, Math.ceil(dur*1000));
           }catch(_e){}
-        }
+  }
+
+  async function playWord(index){
+    return enqueueSpeech(() => _playWordNow(index));
+  }
 
         // safety timeout in case onended doesn't fire
         setTimeout(done, Math.ceil(dur*1000) + 80);
@@ -1480,7 +1503,7 @@ game.classList.add("goldGlow");
       // Draw the line from previous to current (center-to-center)
       if (i > 0) drawLine(circles[i-1], c);
 
-      c.el.classList.add("visible");
+      await popInflateSettle(c.el);
       c.el.classList.remove("dim");
       c.el.classList.add("active");
 
@@ -1519,27 +1542,52 @@ game.classList.add("goldGlow");
 
     circles.forEach(c => {
       setCircleGeometry(c, (ROUND_RADIUS ?? RECALL_RADIUS));
+      c.el.style.transform = "scale(1)";
       c.el.classList.add("visible");
     });
 
     setStatus(`Your turn: click in order (1 → ${N}).`);
   }
 
-  function handleClick(circleObj) {
+  async function handleClick(circleObj) {
     const i = circleObj.index;
 
+    // Do not process next click until current word playback finishes
+    if (voiceBusy) return;
+
     if (i === expectedIndex) {
-      playToneForIndex(circleObj.index, 135);
+      voiceBusy = true;
+      try{
+        playToneForIndex(circleObj.index, 135);
 
-            try{ playWordInstant(circleObj.index); }catch(e){}
-circleObj.el.classList.add("glow");
-      setTimeout(() => circleObj.el?.classList.remove("glow"), 160);
+        circleObj.el.classList.add("glow");
+        setTimeout(() => circleObj.el?.classList.remove("glow"), 160);
 
-      setTimeout(() => circleObj.el?.remove(), 40);
+        // Speak ONLY on the correct click, and wait for it to finish
+        try{
+          const didVoice = await playWord(circleObj.index);
+          if(!didVoice){
+            // no recorded words: tiny pause so UI still feels paced
+            await sleep(60);
+          }
+        }catch(e){
+          // ignore voice errors but keep pacing consistent
+          await sleep(60);
+        }
 
-      expectedIndex++;
-      if (expectedIndex >= N) onSuccess();
-      else setStatus(`Good! Next: ${expectedIndex + 1} of ${N}.`);
+        // Now remove the circle (after voice completes)
+        circleObj.el?.remove();
+
+        expectedIndex++;
+        // Update spoken word counter and UI
+        if(voice) voice.wordIndex = expectedIndex;
+        try{ updateWordCountUI(); }catch(e){}
+
+        if (expectedIndex >= N) onSuccess();
+        else setStatus(`Good! Next: ${expectedIndex + 1} of ${N}.`);
+      } finally {
+        voiceBusy = false;
+      }
     } else {
       // Wrong click: allow up to MISS_LIMIT misses per round (do not end immediately)
       playFail();
@@ -1551,11 +1599,10 @@ circleObj.el.classList.add("glow");
 
       const remaining = MISS_LIMIT - missesUsed;
       if (remaining > 0) {
-        setStatus(`Almost! Try again — ${remaining} miss${remaining===1?"":"es"} left this round.`);
-        return; // keep playing this round
+        setStatus(`Almost! Try again. ${remaining} ${remaining === 1 ? "chance" : "chances"} left.`);
       } else {
-        setStatus(`Out of chances this round.`);
-        onFailure();
+        // Out of chances => end round as a fail
+        onFail();
       }
     }
   }
