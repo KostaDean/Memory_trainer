@@ -96,7 +96,7 @@
     border-radius:18px;
     overflow:hidden;
     box-shadow: 0 20px 70px rgba(0,0,0,0.35);
-    transition: background 160ms ease, box-shadow 220ms ease;
+    transition: background 160ms ease, box-shadow 220ms ease, transform 160ms ease;
   }
 
   /* When photo background is active, make the play panel transparent so the photo shows through */
@@ -1503,7 +1503,7 @@ game.classList.add("goldGlow");
       // Draw the line from previous to current (center-to-center)
       if (i > 0) drawLine(circles[i-1], c);
 
-      c.el.classList.add("visible");
+      await popInflateSettle(c.el);
       c.el.classList.remove("dim");
       c.el.classList.add("active");
 
@@ -1542,6 +1542,7 @@ game.classList.add("goldGlow");
 
     circles.forEach(c => {
       setCircleGeometry(c, (ROUND_RADIUS ?? RECALL_RADIUS));
+      c.el.style.transform = "scale(1)";
       c.el.classList.add("visible");
     });
 
