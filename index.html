@@ -105,8 +105,7 @@
   }
   #playPanel.photoBgActive #game.flashA{ background: rgba(31,47,102,0.32) !important; }
   #playPanel.photoBgActive #game.flashB{ background: rgba(13,22,51,0.38) !important; }
-  #playPanel.photoBgActive .circle{
-    box-sizing: border-box; opacity: 0.90; }
+  #playPanel.photoBgActive .circle{ opacity: 0.90; }
 
 
   #game.flashA{ background: rgba(31,47,102,0.88); }
@@ -145,6 +144,8 @@
   }
 
   .circle{
+    box-sizing: border-box;
+    box-sizing: border-box;
     box-sizing: border-box;
     position:absolute;
     border-radius:50%;
@@ -421,19 +422,7 @@
   }
 
 
-  /* Upload icon button */
-  .bgSwatch.upload {
-    display:flex;
-    align-items:center;
-    justify-content:center;
-  }
-  .bgSwatch.upload svg{
-    width:16px; height:16px;
-    fill: currentColor;
-    opacity:0.9;
-  }
-
-      background: rgba(0,0,0,0.18);
+  background: rgba(0,0,0,0.18);
     pointer-events: none; /* allow clicks/taps to pass through to circles */
   }
   #overlay.photoMode #panel{
@@ -489,6 +478,48 @@
     letter-spacing: 0.2px;
   }
 
+
+  /* Voice + Upload row */
+  .voice-wrap{
+    display:flex;
+    gap:10px;
+    align-items:center;
+    flex-wrap:wrap;
+    margin-top:8px;
+  }
+  .tune-btn.wide{
+    width:auto !important;
+    min-width: 92px;
+    padding: 10px 14px !important;
+    font-weight: 800;
+    letter-spacing: 0.2px;
+  }
+  .pill{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    padding:8px 10px;
+    border-radius:14px;
+    border:1px solid rgba(255,255,255,0.14);
+    background: rgba(255,255,255,0.06);
+    color: var(--muted);
+    font-size:14px;
+  }
+  button:disabled{ opacity:0.45; }
+  #recBtn.recording{
+    border-color: rgba(255,80,80,0.9) !important;
+    box-shadow: 0 0 0 2px rgba(255,80,80,0.25);
+  }
+
+
+  /* Center labels on Stop/Clear */
+  #stopRecBtn, #clearRecBtn, #markRecBtn{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+  }
+
 </style>
 
 </head>
@@ -501,15 +532,23 @@
     <div id="missBar" class="missBar" title="Mistakes allowed (resets each round)">
       <span class="missDot"></span><span class="missDot"></span><span class="missDot"></span>
     </div>
-<button id="endBtn" title="End game and show score">End Game</button>
+<button id="endBtn" title="End game and show score">End</button>
 
-    <div id="level">N = 2 <span id="wordsInline" style="margin-left:10px; color:var(--muted); font-weight:600;">Words: <span id="wordsInlineCount">0</span></span></div>
+    
 
-    <div class="bg-palette-wrap" aria-label="Background">
+    <div id="level"><span class="pill">N = <b id="nVal">2</b></span> <span class="pill" style="margin-left:10px;">Words: <b id="wordCount">0</b></span></div>
+<div class="bg-palette-wrap" aria-label="Background">
       <span class="bg-label">Background</span>
       <div id="bgPalette" class="bg-palette" role="listbox" aria-label="Background colors"></div>
-          <button id="uploadBtn" class="tune-btn" title="Upload photo (foreground)">Upload</button>
-    </div>
+
+    <div class="voice-wrap" aria-label="Voice recording">
+      <button id="uploadBtn" class="tune-btn wide" title="Upload photo overlay (tap) / clear (hold)">Upload</button>
+      <button id="recBtn" class="tune-btn wide" title="Record voice (tap once per word as you speak)">Record</button>
+      <button id="stopRecBtn" class="tune-btn" title="Stop recording" disabled>Stop</button>
+      <button id="clearRecBtn" class="tune-btn" title="Clear recording" disabled>Clear</button>
+<button id="markRecBtn" class="tune-btn" title="Mark word boundary (use if screen taps miss)" disabled>Mark</button>
+</div>
+</div>
 
     <div class="tune-wrap" aria-label="Training tuning">
       <div class="tune" role="group" aria-label="Timing">
@@ -539,8 +578,6 @@
   <div id="game">
     <div id="arena"></div>
     <svg id="linesLayer" aria-hidden="true"></svg>
-
-    <div id="debugBox" style="position:absolute; left:10px; top:10px; z-index:40; font:12px/1.25 ui-monospace, SFMono-Regular, Menlo, monospace; color:#fff; background:rgba(0,0,0,0.45); padding:8px 10px; border-radius:10px; border:1px solid rgba(255,255,255,0.18); max-width:92%; white-space:pre-wrap; display:none;"></div>
 
     <div id="photoOverlay" aria-hidden="true">
       <img id="photoOverlayImg" alt="Uploaded photo" />
@@ -710,56 +747,6 @@ const endBtn = document.getElementById("endBtn");
 
   const linesLayer = document.getElementById("linesLayer");
 
-
-  // ---------- Debug (overlap diagnostics) ----------
-  let DBG = true; // set false to hide
-  const debugBox = document.getElementById("debugBox");
-  function setDebug(text){
-    if(!debugBox) return;
-    if(!DBG){ debugBox.style.display="none"; return; }
-    debugBox.style.display="block";
-    debugBox.textContent = text;
-  }
-
-  function effectiveRadiusPx(R){
-    // Conservative max scale used by CSS during animations (active uses 1.03)
-    const maxScale = 1.03;
-    return R * maxScale;
-  }
-
-  function checkOverlaps(stageLabel){
-    if(!DBG) return;
-    const R = (ROUND_RADIUS ?? RECALL_RADIUS);
-    let minD = Infinity;
-    let pair = null;
-
-    for(let i=0;i<circles.length;i++){
-      for(let j=i+1;j<circles.length;j++){
-        const a=circles[i], b=circles[j];
-        const D = Math.hypot(a.cx-b.cx, a.cy-b.cy);
-        if(D < minD){ minD = D; pair = [i,j]; }
-      }
-    }
-
-    const Reff = effectiveRadiusPx(R);
-    const thresh = 2*Reff;
-
-    let msg = `${stageLabel}\n` +
-              `N=${N}  ROUND_RADIUS=${R.toFixed(2)}  Reff≈${Reff.toFixed(2)}  thresh≈${thresh.toFixed(2)}\n` +
-              `min center distance=${(isFinite(minD)?minD.toFixed(2):"n/a")}`;
-
-    if(pair){
-      msg += `  (pair ${pair[0]+1},${pair[1]+1})\n`;
-      msg += (minD < thresh)
-        ? `⚠️ OVERLAP LIKELY: minD < thresh\n`
-        : `✅ spacing OK: minD ≥ thresh\n`;
-    }else{
-      msg += `\n`;
-    }
-
-    setDebug(msg);
-  }
-
   function clearLines(){
     while (linesLayer.firstChild) linesLayer.removeChild(linesLayer.firstChild);
   }
@@ -874,17 +861,7 @@ const endBtn = document.getElementById("endBtn");
   const dist  = (a,b) => Math.hypot(a.cx-b.cx, a.cy-b.cy);
 
   function setStatus(s){ statusEl.textContent = s; }
-  function setLevel(){ levelEl.textContent = `N = ${N}`; }
-
-  function syncWordsInline(){
-    const inline = document.getElementById("wordsInlineCount");
-    if(!inline) return;
-    // If there is an existing counter element, mirror it; otherwise leave as-is.
-    const wc = document.getElementById("wordsCount") || document.getElementById("wordCount") || document.querySelector('[data-words-count]');
-    if(wc){
-      inline.textContent = (wc.textContent || "0").replace(/[^0-9]/g,"") || "0";
-    }
-  }
+  function setLevel(){ const nEl=document.getElementById("nVal"); if(nEl) nEl.textContent = String(N); }
 
   // ---------- iOS / anti-jump ----------
   function lockViewport(){
@@ -926,10 +903,12 @@ const endBtn = document.getElementById("endBtn");
   const _isInteractive = (t) => !!(t && (t.closest?.(".circle") || t.closest?.("button") || t.closest?.("select")));
 
   document.addEventListener("touchstart", (e) => {
+    if (typeof voice !== "undefined" && voice && voice.recording) return;
     if (phase !== "idle" && !_isInteractive(e.target)) e.preventDefault();
   }, { passive:false });
 
   document.addEventListener("touchend", (e) => {
+    if (typeof voice !== "undefined" && voice && voice.recording) return;
     if (phase !== "idle" && !_isInteractive(e.target)) e.preventDefault();
   }, { passive:false });
 
@@ -1011,6 +990,291 @@ const endBtn = document.getElementById("endBtn");
     });
   }
 
+
+  // ---- Voice recording (tap once per word) + word playback on sequence and recall ----
+  const recBtn = document.getElementById("recBtn");
+  const stopRecBtn = document.getElementById("stopRecBtn");
+  const clearRecBtn = document.getElementById("clearRecBtn");
+  const markRecBtn  = document.getElementById("markRecBtn");
+  const wordCountEl = document.getElementById("wordCount");
+
+  const voice = {
+    wordIndex:0,       // how many words have been spoken in current recall
+    recording:false,
+    mediaRecorder:null,
+    stream:null,
+    chunks:[],
+    markers:[],        // ms offsets from start
+    startedAt:0,
+    audioBuffer:null,  // decoded AudioBuffer
+    segments:[]        // [{start,end}] seconds, length = words
+  };
+
+  // Serialize speech so timing stays in sync
+  let speechQueue = Promise.resolve();
+  let lastMarkTs = 0;
+
+  let voiceBusy = false; // prevents processing next click before voice finishes
+
+  function enqueueSpeech(fn){
+    speechQueue = speechQueue.then(fn, fn);
+    return speechQueue;
+  }
+
+    function updateWordCountUI(){
+    if(!wordCountEl) return;
+    const total = (voice && Array.isArray(voice.segments)) ? voice.segments.length : 0;
+    const spoken = (voice && typeof voice.wordIndex === "number") ? voice.wordIndex : 0;
+    if(voice && voice.recording){
+      wordCountEl.textContent = String(total);
+    } else {
+      if(total > 0) wordCountEl.textContent = `${spoken}/${total}`;
+      else wordCountEl.textContent = "0";
+    }
+  }
+
+  function setWordCount(n){
+    // backward compatible: set total (recorded) count directly
+    if(!wordCountEl) return;
+    wordCountEl.textContent = String(n||0);
+  }
+
+  function pickMime(){
+    const mimes = ["audio/mp4","audio/webm;codecs=opus","audio/webm","audio/ogg;codecs=opus"];
+    for(const m of mimes){
+      try{ if(window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(m)) return m; }catch(e){}
+    }
+    return "";
+  }
+
+  async function decodeAndBuildSegments(blob){
+    const ctx = ensureAudio();
+    if(ctx.state === "suspended"){ try{ await ctx.resume(); }catch(e){} }
+    const arr = await blob.arrayBuffer();
+    const buf = await ctx.decodeAudioData(arr.slice(0));
+    voice.audioBuffer = buf;
+
+    const durMs = buf.duration * 1000;
+    const marks = voice.markers
+      .slice()
+      .filter(ms => ms >= 0 && ms <= durMs)
+      .sort((a,b)=>a-b);
+
+    const segs = [];
+    let prev = 0;
+    for(const ms of marks){
+      const s = prev/1000, e = ms/1000;
+      if(e - s > 0.06) segs.push({start:s, end:e});
+      prev = ms;
+    }
+    const lastS = prev/1000;
+    if(buf.duration - lastS > 0.06) segs.push({start:lastS, end: buf.duration});
+
+    voice.segments = segs.length ? segs : [{start:0, end: buf.duration}];
+    setWordCount(voice.segments.length);
+  }
+
+  async function startRecording(){
+    if(!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder){
+      setStatus("Recording not supported on this browser.");
+      return;
+    }
+    try{
+      ensureAudio();
+      const stream = await navigator.mediaDevices.getUserMedia({audio:true});
+      voice.stream = stream;
+      voice.chunks = [];
+      voice.markers = [];
+      voice.audioBuffer = null;
+      voice.segments = [];
+      setWordCount(0);
+    voice.wordIndex = 0;
+    updateWordCountUI();
+
+      const mime = pickMime();
+      const mr = new MediaRecorder(stream, mime ? {mimeType:mime} : undefined);
+      voice.mediaRecorder = mr;
+
+      mr.ondataavailable = (e)=>{ if(e.data && e.data.size) voice.chunks.push(e.data); };
+      mr.onstop = async ()=>{
+        try{ stream.getTracks().forEach(t=>t.stop()); }catch(e){}
+        const blob = new Blob(voice.chunks, { type: mr.mimeType || mime || "audio/webm" });
+        try{
+          await decodeAndBuildSegments(blob);
+          clearRecBtn.disabled = false;
+          setStatus(`Recorded ${voice.segments.length} word(s).`);
+        }catch(e){
+          setStatus("Recorded, but could not decode audio on this device.");
+        }
+      };
+
+      voice.startedAt = performance.now();
+      voice.recording = true;
+      mr.start();
+
+      recBtn?.classList.add("recording");
+      recBtn.disabled = true;
+      stopRecBtn.disabled = false;
+      clearRecBtn.disabled = true;
+      if(markRecBtn) markRecBtn.disabled = false;
+
+      setStatus("Recording… tap once per word as you speak.");
+    }catch(e){
+      setStatus("Mic permission denied/unavailable.");
+    }
+  }
+
+  function stopRecording(){
+    if(!isRecordingActive()) return;
+    voice.recording = false;
+    updateWordCountUI();
+    try{ voice.mediaRecorder?.stop(); }catch(e){}
+    recBtn?.classList.remove("recording");
+    recBtn.disabled = false;
+    stopRecBtn.disabled = true;
+    if(markRecBtn) markRecBtn.disabled = true;
+  }
+
+  function clearRecording(){
+    voice.recording = false;
+    try{ voice.stream?.getTracks().forEach(t=>t.stop()); }catch(e){}
+    voice.stream = null;
+    voice.mediaRecorder = null;
+    voice.chunks = [];
+    voice.markers = [];
+    voice.audioBuffer = null;
+    voice.segments = [];
+    setWordCount(0);
+    updateWordCountUI();
+    clearRecBtn.disabled = true;
+    if(markRecBtn) markRecBtn.disabled = true;
+    setStatus("Voice cleared.");
+  }
+
+  function markWordBoundary(){
+    const now = Date.now();
+    if (now - lastMarkTs < 250) return; // debounce double-fired tap
+    lastMarkTs = now;
+    if(!isRecordingActive()) return;
+    const ms = performance.now() - voice.startedAt;
+    voice.markers.push(ms);
+    setWordCount(voice.markers.length);
+      updateWordCountUI();
+}
+
+  const WORD_PAD_BEFORE_MS = 90;
+  const WORD_PAD_AFTER_MS  = 140;
+
+  function hasVoiceWords(){
+    return !!(voice.audioBuffer && voice.segments && voice.segments.length);
+  }
+  async function _playWordNow(index){
+    // Plays the slice for the given word index.
+    // Returns true if a word was played, false otherwise.
+    if(!hasVoiceWords()) return false;
+
+    const seg = voice.segments[index % voice.segments.length];
+    const ctx = ensureAudio();
+    if(ctx.state === "suspended"){ try{ await ctx.resume(); }catch(e){} }
+
+    const dur = Math.max(0.03, seg.end - seg.start);
+
+    // small silence before each word
+    await sleep(WORD_PAD_BEFORE_MS);
+
+    await new Promise((resolve) => {
+      try{
+        const src = ctx.createBufferSource();
+        src.buffer = voice.audioBuffer;
+        src.connect(ctx.destination);
+
+        let doneCalled = false;
+        const done = () => {
+          if(doneCalled) return;
+          doneCalled = true;
+          resolve();
+        };
+
+        src.onended = done;
+
+        const now = ctx.currentTime;
+        try{
+          src.start(now, seg.start, dur);
+        }catch(e){
+          // fallback: start without duration then stop after dur
+          try{
+            src.start(now, seg.start);
+            setTimeout(()=>{ try{ src.stop(); }catch(_e){} }, Math.ceil(dur*1000));
+          }catch(_e){}
+  }
+
+  async function playWord(index){
+    return enqueueSpeech(() => _playWordNow(index));
+  }
+
+        // safety timeout in case onended doesn't fire
+        setTimeout(done, Math.ceil(dur*1000) + 80);
+      }catch(e){
+        resolve();
+      }
+    });
+
+    // small silence after each word
+    await sleep(WORD_PAD_AFTER_MS);
+    return true;
+  }
+
+  function playWordInstant(index){
+    if(!hasVoiceWords()) return;
+    const seg = voice.segments[index % voice.segments.length];
+    const ctx = ensureAudio();
+    const dur = Math.max(0.03, seg.end - seg.start);
+    try{
+      const src = ctx.createBufferSource();
+      src.buffer = voice.audioBuffer;
+      src.connect(ctx.destination);
+      const now = ctx.currentTime;
+      try{
+        src.start(now, seg.start, dur);
+      }catch(e){
+        try{
+          src.start(now, seg.start);
+          setTimeout(()=>{ try{ src.stop(); }catch(_e){} }, Math.ceil(dur*1000));
+        }catch(_e){}
+      }
+    }catch(e){}
+  }
+
+
+  recBtn?.addEventListener("click", startRecording);
+  stopRecBtn?.addEventListener("click", stopRecording);
+  clearRecBtn?.addEventListener("click", clearRecording);
+  markRecBtn?.addEventListener("click", (e)=>{ e.preventDefault(); if(isRecordingActive()) markWordBoundary(); });
+
+    // Reliable word delimiting on iOS: use pointerdown/touchend (click can be suppressed by preventDefault).
+  function isRecordingActive(){
+    // Record tapped and Stop not yet tapped
+    return !!(voice && voice.recording && stopRecBtn && !stopRecBtn.disabled);
+  }
+
+  function shouldIgnoreMarkTarget(t){
+    return !!(t && (t.closest?.("button, select, a, input") || t.closest?.(".circle") || t.closest?.("#overlay")));
+  }
+  function tryMarkFromEvent(e){
+    if(!isRecordingActive()) return;
+    const t = e.target;
+    if(shouldIgnoreMarkTarget(t)) return;
+    markWordBoundary();
+  }
+  document.addEventListener("pointerdown", (e)=>{ tryMarkFromEvent(e); }, {capture:true});
+  document.addEventListener("touchend", (e)=>{ tryMarkFromEvent(e); }, {capture:true, passive:false});
+  game.addEventListener("pointerup", (e)=>{ tryMarkFromEvent(e); }, {capture:true});
+  game.addEventListener("touchend", (e)=>{ tryMarkFromEvent(e); }, {capture:true, passive:false});
+  // Also attach to game area directly (more reliable on iOS)
+  game.addEventListener("pointerdown", (e)=>{ tryMarkFromEvent(e); }, {capture:true});
+  game.addEventListener("touchend", (e)=>{ tryMarkFromEvent(e); }, {capture:true, passive:false});
+
+
 function initBackgroundPalette(opts){
     const {
       containerId = "bgPalette",
@@ -1059,23 +1323,6 @@ function initBackgroundPalette(opts){
       if(saved && BACKGROUND_THEMES[saved]) initial = saved;
     }catch(e){}
     setTheme(initial);
-
-    // Photo swatch at end (opens image picker; long-press clears photo)
-    const photo = document.createElement("button");
-    photo.type = "button";
-    photo.className = "bgSwatch upload";
-    photo.title = "Upload photo background";
-    photo.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20h14v-2H5v2zm7-16l-5 5h3v4h4v-4h3l-5-5z"/></svg>`;
-    photo.setAttribute("role","option");
-    photo.addEventListener("click", () => { openPhotoPicker(); });
-
-    let pressTimer = null;
-    photo.addEventListener("pointerdown", () => { pressTimer = setTimeout(() => { clearPhotoBackground(); }, 650); });
-    photo.addEventListener("pointerup", () => { if(pressTimer) clearTimeout(pressTimer); pressTimer=null; });
-    photo.addEventListener("pointercancel", () => { if(pressTimer) clearTimeout(pressTimer); pressTimer=null; });
-
-    container.appendChild(photo);
-
   return { setTheme };
   }
 
@@ -1102,11 +1349,12 @@ game.classList.add("goldGlow");
 
   // ---------- Game state ----------
   let N = 2;
-  let phase = "idle"; // idle | showing | recall | transition | ended
+  let phase = "idle";
+  let recallInputLocked = false; // idle | showing | recall | transition | ended
   let expectedIndex = 0;
 
   let circles = [];
-  let ROUND_RADIUS = null; // locked per round (prevents size-dial mid-round drift)
+  let ROUND_RADIUS = null; // locked per round to prevent size-dial drift
   let runToken = 0;
 
   let maxNThisSession = 2;
@@ -1138,9 +1386,14 @@ game.classList.add("goldGlow");
       rgba(255,255,255,0.55),
       hsl(${h} ${s}% ${l}%))`;
 
-    el.addEventListener("pointerdown", (e) => {
+    el.addEventListener("pointerdown", async (e) => {
       if (phase !== "recall") return;
+      if (recallInputLocked) { e.preventDefault(); return; }
+      recallInputLocked = true;
+
       handleClick(c);
+      // allow next input after this click is processed
+      recallInputLocked = false;
       e.preventDefault();
     });
 
@@ -1158,13 +1411,11 @@ game.classList.add("goldGlow");
   function nonOverlappingPlacement(n) {
     const ar = arenaRectInGameCoords();
 
-    // Final radius is locked per round to prevent drift from the Size dial mid-round.
+    // Place using final fixed radius (Size dial) so recall circles never overlap.
+    // Pop/show circles may overlap; that's OK.
     const R = (ROUND_RADIUS ?? RECALL_RADIUS);
-
-    // Only store centers; enforce strict non-overlap at final size.
     const centers = [];
 
-    // Build without any overlap fallback. If we get stuck, restart.
     const BUILD_ATTEMPTS = 80;
     const MAX_TRIES_PER_CIRCLE = 1600;
 
@@ -1198,7 +1449,6 @@ game.classList.add("goldGlow");
       if (ok) break;
     }
 
-    // Pop/show size can vary (overlap during show is allowed).
     return centers.slice(0, n).map(c => ({
       cx: c.cx,
       cy: c.cy,
@@ -1213,10 +1463,9 @@ game.classList.add("goldGlow");
 
     phase = "transition";
     clearBoard();
-    ROUND_RADIUS = RECALL_RADIUS; // lock final radius for this entire round
     syncLinesViewport();
     setLevel();
-    try{ syncWordsInline(); }catch(e){}
+    ROUND_RADIUS = RECALL_RADIUS; // lock radius for this round
 
     setStatus("Get ready…");
     await preRoundCue(token);
@@ -1234,8 +1483,6 @@ game.classList.add("goldGlow");
       return { ...pos, index:i, color, freq, wave, el:null };
     });
 
-    checkOverlaps("after placement (before DOM)");
-
     circles.forEach(c => {
       makeCircleElement(c);
       setCircleGeometry(c, c.rShow);
@@ -1245,19 +1492,6 @@ game.classList.add("goldGlow");
     for (let i=0; i<N; i++) {
       if (token !== runToken) return;
       const c = circles[i];
-
-      // Debug: min distance from this circle to any previous circle center
-      if(DBG){
-        let dminPop = Infinity;
-        for(let k=0;k<i;k++){
-          const p = circles[k];
-          const D = Math.hypot(c.cx-p.cx, c.cy-p.cy);
-          if(D < dminPop) dminPop = D;
-        }
-        const R = (ROUND_RADIUS ?? RECALL_RADIUS);
-        setDebug(`pop ${i+1}/${N}\nROUND_RADIUS=${R.toFixed(2)}\nminD to previous=${(isFinite(dminPop)?dminPop.toFixed(2):'n/a')}`);
-      }
-
 
       // Keep already-shown circles on-screen (dim), highlight current one.
       for (let j=0; j<i; j++){
@@ -1270,18 +1504,29 @@ game.classList.add("goldGlow");
       // Draw the line from previous to current (center-to-center)
       if (i > 0) drawLine(circles[i-1], c);
 
+      c.el.style.transform = "scale(1)";
       c.el.classList.add("visible");
+      await popPulse(c.el);
       c.el.classList.remove("dim");
       c.el.classList.add("active");
 
       playToneForIndex(c.index, Math.min(190, Math.floor(SHOW_MS*0.30)));
-      await sleep(SHOW_MS);
+
+      // Voice pacing: if words exist, the spoken word controls timing (with padding).
+      // Otherwise use the Timing setting (SHOW_MS/GAP_MS).
+      const didVoice = await playWord(i);
+
+      if(!didVoice){
+        await sleep(SHOW_MS);
+      }
 
       // After its turn, keep it on-screen but dimmed (no popping)
       c.el.classList.remove("active");
       c.el.classList.add("dim");
 
-      await sleep(GAP_MS);
+      if(!didVoice){
+        await sleep(GAP_MS);
+      }
     }
 
     // NEW: erase lines before player starts clicking
@@ -1300,27 +1545,52 @@ game.classList.add("goldGlow");
 
     circles.forEach(c => {
       setCircleGeometry(c, (ROUND_RADIUS ?? RECALL_RADIUS));
+      c.el.style.transform = "scale(1)";
       c.el.classList.add("visible");
     });
-    checkOverlaps("recall render");
 
     setStatus(`Your turn: click in order (1 → ${N}).`);
   }
 
-  function handleClick(circleObj) {
+  async function handleClick(circleObj) {
     const i = circleObj.index;
 
+    // Do not process next click until current word playback finishes
+    if (voiceBusy) return;
+
     if (i === expectedIndex) {
-      playToneForIndex(circleObj.index, 135);
+      voiceBusy = true;
+      try{
+        playToneForIndex(circleObj.index, 135);
 
-      circleObj.el.classList.add("glow");
-      setTimeout(() => circleObj.el?.classList.remove("glow"), 160);
+        circleObj.el.classList.add("glow");
+        setTimeout(() => circleObj.el?.classList.remove("glow"), 160);
 
-      setTimeout(() => circleObj.el?.remove(), 40);
+        // Speak ONLY on the correct click, and wait for it to finish
+        try{
+          const didVoice = await playWord(circleObj.index);
+          if(!didVoice){
+            // no recorded words: tiny pause so UI still feels paced
+            await sleep(60);
+          }
+        }catch(e){
+          // ignore voice errors but keep pacing consistent
+          await sleep(60);
+        }
 
-      expectedIndex++;
-      if (expectedIndex >= N) onSuccess();
-      else setStatus(`Good! Next: ${expectedIndex + 1} of ${N}.`);
+        // Now remove the circle (after voice completes)
+        circleObj.el?.remove();
+
+        expectedIndex++;
+        // Update spoken word counter and UI
+        if(voice) voice.wordIndex = expectedIndex;
+        try{ updateWordCountUI(); }catch(e){}
+
+        if (expectedIndex >= N) onSuccess();
+        else setStatus(`Good! Next: ${expectedIndex + 1} of ${N}.`);
+      } finally {
+        voiceBusy = false;
+      }
     } else {
       // Wrong click: allow up to MISS_LIMIT misses per round (do not end immediately)
       playFail();
@@ -1332,11 +1602,10 @@ game.classList.add("goldGlow");
 
       const remaining = MISS_LIMIT - missesUsed;
       if (remaining > 0) {
-        setStatus(`Almost! Try again — ${remaining} miss${remaining===1?"":"es"} left this round.`);
-        return; // keep playing this round
+        setStatus(`Almost! Try again. ${remaining} ${remaining === 1 ? "chance" : "chances"} left.`);
       } else {
-        setStatus(`Out of chances this round.`);
-        onFailure();
+        // Out of chances => end round as a fail
+        onFail();
       }
     }
   }
@@ -1369,7 +1638,7 @@ game.classList.add("goldGlow");
     scoreEl.textContent = `N = ${maxNThisSession}`;
     overlay.classList.add("show");
     setStatus("Game ended.");
-    levelEl.textContent = `N = ${N}`;
+    setLevel();
   }
 
   function attemptClose(){
@@ -1392,10 +1661,10 @@ game.classList.add("goldGlow");
   });
 
   closeFromOverlay.addEventListener("click", () => {
-    attemptClose();
+    overlay.classList.remove("show");
+    setStatus("Score panel closed.");
   });
-
-  restartFromOverlay.addEventListener("click", () => {
+restartFromOverlay.addEventListener("click", () => {
     // If we are in photoMode, keep overlay shown; otherwise hide it.
     if(!overlay.classList.contains("photoMode")) overlay.classList.remove("show");
     startGame();
@@ -1411,7 +1680,6 @@ game.classList.add("goldGlow");
     maxNThisSession = 2;
     setLevel();
     clearBoard();
-    try{ syncWordsInline(); }catch(e){}
     setStatus("Starting…");
     sleep(120).then(async () => { await goldTransition(runToken); await runRound(runToken); });
 }
