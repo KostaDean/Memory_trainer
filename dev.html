@@ -521,7 +521,21 @@
     text-align:center;
   }
 
+
+  body.inGame header .controls-row,
+  body.inGame header .voice-wrap{
+    display:none !important;
+  }
+  /* Keep the top line (level) visible */
+  body.inGame #level{
+    display:block !important;
+  }
+  /* Constrain the playfield so circles never go under Safari bottom bar */
+  #game{
+    max-height: calc(100svh - 64px - env(safe-area-inset-bottom));
+  }
 </style>
+
 
 </head>
 
@@ -620,6 +634,8 @@
 <script>
   // ---------- Sound (WebAudio with iOS unlock) ----------
   let audioCtx = null;
+  let soundEnabled = true;
+
   let audioUnlocked = false;
 
   function initAudio(){
@@ -629,7 +645,7 @@
         if(!AC) return;
         audioCtx = new AC();
       }
-      if(audioCtx.state === "suspended") audioCtx.resume();
+      if(audioCtx.state === "suspended"){ try{ audioCtx.resume(); }catch(e){} }
     }catch(e){}
   }
 
@@ -637,18 +653,22 @@
     if(audioUnlocked) return;
     audioUnlocked = true;
     initAudio();
+    // Prime the audio graph on iOS
+    try{ beep(30, 10, 0.001); }catch(e){}
   }
   window.addEventListener("pointerdown", unlockAudioOnce, {once:true, capture:true});
   window.addEventListener("touchend", unlockAudioOnce, {once:true, capture:true});
 
-  function beep(freq=440, ms=90, gain=0.06){
+  function beep(freq=440, ms=90, gain=0.18){
+    if(!soundEnabled) return;
+
     try{
       initAudio();
       if(!audioCtx) return;
       const t0 = audioCtx.currentTime;
       const osc = audioCtx.createOscillator();
       const g = audioCtx.createGain();
-      osc.type = "sine";
+      osc.type = "triangle";
       osc.frequency.setValueAtTime(freq, t0);
       g.gain.setValueAtTime(0.0001, t0);
       g.gain.exponentialRampToValueAtTime(gain, t0 + 0.01);
@@ -935,6 +955,8 @@ const endBtn = document.getElementById("endBtn");
   const WAVEFORMS = ["sine", "triangle", "square", "sawtooth"];
 
   let audioCtx = null;
+  let soundEnabled = true;
+
   function ensureAudio() {
     audioCtx ??= new (window.AudioContext || window.webkitAudioContext)();
     if (audioCtx.state === "suspended") audioCtx.resume();
@@ -980,7 +1002,14 @@ const endBtn = document.getElementById("endBtn");
   };
   const dist  = (a,b) => Math.hypot(a.cx-b.cx, a.cy-b.cy);
 
-  function setStatus(s){ statusEl.textContent = s; }
+  
+  function setInGame(on){
+    try{
+      if(on) document.body.classList.add("inGame");
+      else document.body.classList.remove("inGame");
+    }catch(e){}
+  }
+function setStatus(s){ statusEl.textContent = s; }
   function setLevel(){ const nEl=document.getElementById("nVal"); if(nEl) nEl.textContent = String(N); }
 
   // ---------- iOS / anti-jump ----------
@@ -1470,6 +1499,7 @@ game.classList.add("goldGlow");
   // ---------- Game state ----------
   let N = 2;
   let phase = "idle";
+    setInGame(false);
   let recallInputLocked = false; // idle | showing | recall | transition | ended
   let expectedIndex = 0;
 
@@ -1761,6 +1791,8 @@ game.classList.add("goldGlow");
   }
 
   endBtn.addEventListener("click", () => {
+    setInGame(false);
+
     ensureAudio();
     endGame();
   });
@@ -1796,6 +1828,7 @@ restartFromOverlay.addEventListener("click", () => {
     overlay.classList.remove("show");
     runToken++;
     phase = "idle";
+    setInGame(false);
     N = 2;
     maxNThisSession = 2;
     setLevel();
