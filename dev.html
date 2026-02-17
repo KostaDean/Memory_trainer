@@ -1573,21 +1573,14 @@ game.classList.add("goldGlow");
 
       playToneForIndex(c.index, Math.min(190, Math.floor(SHOW_MS*0.30)));
 
-      // Voice pacing: if words exist, the spoken word controls timing (with padding).
-      // Otherwise use the Timing setting (SHOW_MS/GAP_MS).
-      const didVoice = await playWord(i);
-
-      if(!didVoice){
-        await sleep(SHOW_MS);
-      }
+      // Timing pacing (no word voicing during SHOW phase)
+      await sleep(SHOW_MS);
 
       // After its turn, keep it on-screen but dimmed (no popping)
       c.el.classList.remove("active");
       c.el.classList.add("dim");
 
-      if(!didVoice){
-        await sleep(GAP_MS);
-      }
+      await sleep(GAP_MS);
     }
 
     // NEW: erase lines before player starts clicking
