@@ -96,7 +96,7 @@
     border-radius:18px;
     overflow:hidden;
     box-shadow: 0 20px 70px rgba(0,0,0,0.35);
-    transition: background 160ms ease, box-shadow 220ms ease, transform 160ms ease;
+    transition: background 160ms ease, box-shadow 220ms ease;
   }
 
   /* When photo background is active, make the play panel transparent so the photo shows through */
@@ -535,7 +535,7 @@
 
     
 
-    <div id="level"><span class="pill">N = <b id="nVal">2</b></span> <span class="pill" style="margin-left:10px;">Words: <b id="wordCount">0</b></span></div>
+    <div id="level"><span class="pill">N = <b id="nVal">2</b></span><span class="pill" style="margin-left:10px;">Words: <b id="wordCount">0</b></span><span class="pill" style="margin-left:10px;">Plays: <b id="playCount">0</b></span><span class="pill" style="margin-left:10px;">Time: <b id="timeLeft">10:00</b></span><button id="addTimeBtn" title="Add more play time" style="margin-left:8px;">More Time</button></div>
 <div class="bg-palette-wrap" aria-label="Background">
       <span class="bg-label">Background</span>
       <div id="bgPalette" class="bg-palette" role="listbox" aria-label="Background colors"></div>
@@ -621,6 +621,70 @@
   const arena  = document.getElementById("arena");
   const startBtn = document.getElementById("startBtn");
   
+  // --- Play count + time limit (persistent) ---
+  const playCountEl = document.getElementById("playCount");
+  const timeLeftEl  = document.getElementById("timeLeft");
+  const addTimeBtn  = document.getElementById("addTimeBtn");
+  const STORAGE_PLAY = "smt_total_plays";
+  const STORAGE_TIME = "smt_time_left_seconds";
+  const DEFAULT_MINUTES = 10; // initial allowed minutes
+  const ADD_MINUTES = 5;      // per "More Time" press
+  let totalPlays = 0;
+  let timeLeftS  = 0;
+  let playTimer = null;
+
+  function loadPlayMeta(){
+    try{ totalPlays = Number(localStorage.getItem(STORAGE_PLAY) || 0) || 0; }catch(e){ totalPlays = 0; }
+    try{ timeLeftS = Number(localStorage.getItem(STORAGE_TIME) || (DEFAULT_MINUTES*60)) || (DEFAULT_MINUTES*60); }catch(e){ timeLeftS = DEFAULT_MINUTES*60; }
+  }
+  function savePlayMeta(){
+    try{ localStorage.setItem(STORAGE_PLAY, String(totalPlays)); }catch(e){}
+    try{ localStorage.setItem(STORAGE_TIME, String(timeLeftS)); }catch(e){}
+  }
+  function fmtTime(s){
+    s = Math.max(0, Math.floor(s||0));
+    const m = Math.floor(s/60);
+    const r = s%60;
+    return `${m}:${String(r).padStart(2,"0")}`;
+  }
+  function renderPlayMeta(){
+    if(playCountEl) playCountEl.textContent = String(totalPlays);
+    if(timeLeftEl) timeLeftEl.textContent = fmtTime(timeLeftS);
+    if(startBtn) startBtn.disabled = (timeLeftS <= 0);
+  }
+  function ensurePlayTimer(){
+    if(playTimer) return;
+    playTimer = setInterval(()=>{
+      // Count down ONLY while actively playing (showing/recall/transition)
+      if(phase === "idle" || phase === "ended") return;
+      if(timeLeftS <= 0) return;
+      timeLeftS = Math.max(0, timeLeftS - 1);
+      savePlayMeta();
+      renderPlayMeta();
+      if(timeLeftS <= 0){
+        // time expired -> end current session and disable Play
+        try{ runToken++; }catch(e){}
+        try{ showFinalScore(); }catch(e){}
+        try{ setStatus("Time is up. Tap \"More Time\" to continue."); }catch(e){}
+        renderPlayMeta();
+      }
+    }, 1000);
+  }
+
+  // init play meta
+  loadPlayMeta();
+  renderPlayMeta();
+  ensurePlayTimer();
+
+  if(addTimeBtn){
+    addTimeBtn.addEventListener("click", ()=>{
+      timeLeftS += (ADD_MINUTES*60);
+      savePlayMeta();
+      renderPlayMeta();
+      setStatus(`Added ${ADD_MINUTES} minutes.`);
+    });
+  }
+
 
   // ---- Forgiving misses (kid-friendly) ----
   const MISS_LIMIT = 3;     // per round
@@ -1503,7 +1567,7 @@ game.classList.add("goldGlow");
       // Draw the line from previous to current (center-to-center)
       if (i > 0) drawLine(circles[i-1], c);
 
-      await popInflateSettle(c.el);
+      c.el.classList.add("visible");
       c.el.classList.remove("dim");
       c.el.classList.add("active");
 
@@ -1542,7 +1606,6 @@ game.classList.add("goldGlow");
 
     circles.forEach(c => {
       setCircleGeometry(c, (ROUND_RADIUS ?? RECALL_RADIUS));
-      c.el.style.transform = "scale(1)";
       c.el.classList.add("visible");
     });
 
@@ -1668,6 +1731,16 @@ restartFromOverlay.addEventListener("click", () => {
   });
 
   function startGame(){
+    if(timeLeftS <= 0){
+      renderPlayMeta();
+      setStatus("No time left. Tap \"More Time\".");
+      return;
+    }
+    // Count a Play press (persistent)
+    totalPlays += 1;
+    savePlayMeta();
+    renderPlayMeta();
+
     ensureAudio();
     lockViewport();
     overlay.classList.remove("show");
