@@ -2,9 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
 <title>Spatial Memory Trainer</title>
 
 <style>
@@ -522,39 +520,20 @@
   }
 
 
-  body.inGame header .controls-row,
-  body.inGame header .voice-wrap{
-    display:none !important;
-  }
-  /* Keep the top line (level) visible */
-  body.inGame #level{
-    display:block !important;
-  }
-  /* Constrain the playfield so circles never go under Safari bottom bar */
+  /* ---- Always-visible playfield + panel toggle ---- */
+  :root{ --bottomGuard: 120px; }
   #game{
-    max-height: calc(100svh - 64px - env(safe-area-inset-bottom));
+    display:flex;
+    flex-direction:column;
+    height:100svh;
+    overflow:hidden;
   }
-
-  :root{
-    --vvh: 100svh;
-    --vvBottom: 0px;
-  }
-  #game{
-    height: var(--vvh);
-    padding-bottom: calc(var(--vvBottom) + env(safe-area-inset-bottom));
-  }
+  header{ flex:0 0 auto; }
   #arena{
-    height: calc(var(--vvh) - 120px - var(--vvBottom));
-    max-height: calc(var(--vvh) - 120px - var(--vvBottom));
-  }
-
-  body.panelHidden header .controls-row,
-  body.panelHidden header .voice-wrap,
-  body.panelHidden header .tune-wrap{
-    display:none !important;
-  }
-  body.panelHidden header{
-    padding-bottom: 6px !important;
+    flex:1 1 auto;
+    min-height: 220px;
+    padding-bottom: var(--bottomGuard);
+    box-sizing:border-box;
   }
   html, body{
     height:100%;
@@ -562,16 +541,23 @@
     overscroll-behavior:none;
     touch-action:manipulation;
   }
-  #game{
-    height:100%;
-    overflow:hidden;
+  body.panelHidden .row-bg,
+  body.panelHidden .row-rec,
+  body.panelHidden .row-tune{
+    display:none !important;
   }
-  #arena{
-    overflow:hidden;
+  body.panelHidden header{
+    padding-bottom: 6px !important;
+  }
+  .ghost{
+    background: rgba(255,255,255,0.08);
+    border:1px solid rgba(255,255,255,0.14);
+    color: rgba(255,255,255,0.92);
+    border-radius: 14px;
+    padding: 10px 14px;
+    font-weight: 600;
   }
 </style>
-
-
 
 
 </head>
@@ -580,6 +566,8 @@
 <header>
   <div id="controls">
     <button id="startBtn" class="primary">Play</button>
+      <button id="panelBtn" class="ghost">Panel</button>
+      <button id="soundBtn" class="ghost">Sound: On</button>
     
     <div id="missBar" class="missBar" title="Mistakes allowed (resets each round)">
       <span class="missDot"></span><span class="missDot"></span><span class="missDot"></span>
@@ -669,120 +657,13 @@
 
   <input id="bgFileInput" type="file" accept="image/*" style="display:none" />
 <script>
-  // ---------- Sound (WebAudio with iOS unlock) ----------
-  let audioCtx = null;
-  let soundEnabled = true;
-
-  let audioUnlocked = false;
-
-  function initAudio(){
-    try{
-      if(!audioCtx){
-        const AC = window.AudioContext || window.webkitAudioContext;
-        if(!AC) return;
-        audioCtx = new AC();
-      }
-      if(audioCtx.state === "suspended"){ try{ audioCtx.resume(); }catch(e){} }
-    }catch(e){}
-  }
-
-  function unlockAudioOnce(){
-    if(audioUnlocked) return;
-    audioUnlocked = true;
-    initAudio();
-    // Prime the audio graph on iOS
-    try{ beep(30, 10, 0.001); }catch(e){}
-  }
-  window.addEventListener("pointerdown", unlockAudioOnce, {once:true, capture:true});
-  window.addEventListener("touchend", unlockAudioOnce, {once:true, capture:true});
-
-  function beep(freq=440, ms=90, gain=0.18){
-    if(!soundEnabled) return;
-    if(!soundEnabled) return;
-
-    try{
-      initAudio();
-      if(!audioCtx) return;
-      const t0 = audioCtx.currentTime;
-      const osc = audioCtx.createOscillator();
-      const g = audioCtx.createGain();
-      osc.type = "triangle";
-      osc.frequency.setValueAtTime(freq, t0);
-      g.gain.setValueAtTime(0.0001, t0);
-      g.gain.exponentialRampToValueAtTime(gain, t0 + 0.01);
-      g.gain.exponentialRampToValueAtTime(0.0001, t0 + ms/1000);
-      osc.connect(g); g.connect(audioCtx.destination);
-      osc.start(t0);
-      osc.stop(t0 + ms/1000 + 0.02);
-    }catch(e){}
-  }
-
-  function playToneForIndex(i, ms=90){
-    const base = 261.63; // C4
-    const steps = [0,2,4,5,7,9,11,12,14,16,17,19];
-    const s = steps[(i-1) % steps.length];
-    const freq = base * Math.pow(2, s/12);
-    beep(freq, ms, 0.07);
-  }
-  function playFail(){ beep(180, 140, 0.10); }
-  function playSuccess(){ beep(660, 120, 0.08); }
-
-  function hideSafariBars(){
-    try{ window.scrollTo(0, 1); }catch(e){}
-  }
-
 (() => {
   const game   = document.getElementById("game");
   const arena  = document.getElementById("arena");
-
-  const headerEl = document.querySelector("header");
-  const togglePanelBtn = document.getElementById("togglePanelBtn");
-
-  function setPanelHidden(hidden){
-    try{
-      if(hidden) document.body.classList.add("panelHidden");
-      else document.body.classList.remove("panelHidden");
-      localStorage.setItem("panelHidden", hidden ? "1" : "0");
-      layoutFit();
-    }catch(e){}
-  }
-  // load saved state
-  try{ if(localStorage.getItem("panelHidden")==="1") document.body.classList.add("panelHidden"); }catch(e){}
-
-  togglePanelBtn?.addEventListener("click", ()=>{
-    const hidden = !document.body.classList.contains("panelHidden");
-    setPanelHidden(hidden);
-  });
-
-  function layoutFit(){
-    // Make arena always fully visible above Safari bottom bar and below header
-    try{
-      const vv = window.visualViewport;
-      const visibleH = vv ? vv.height : window.innerHeight;
-      const visibleTop = vv ? vv.offsetTop : 0;
-      const bottomOverlap = Math.max(0, window.innerHeight - (visibleH + visibleTop));
-      const headerH = headerEl ? headerEl.offsetHeight : 0;
-
-      // Set game and arena heights in px so iOS can't overlap the bottom bar
-      game.style.height = visibleH + "px";
-      const arenaH = Math.max(120, visibleH - headerH - bottomOverlap);
-      arena.style.height = arenaH + "px";
-      arena.style.maxHeight = arenaH + "px";
-      // keep body from scrolling (prevents bar showing/hiding mid-game)
-      document.documentElement.style.overflow = "hidden";
-      document.body.style.overflow = "hidden";
-    }catch(e){}
-  }
-
-  layoutFit();
-  window.addEventListener("resize", ()=>setTimeout(layoutFit, 60));
-  window.addEventListener("orientationchange", ()=>setTimeout(layoutFit, 250));
-  window.visualViewport?.addEventListener("resize", layoutFit);
-  window.visualViewport?.addEventListener("scroll", layoutFit);
-
-
   const startBtn = document.getElementById("startBtn");
   
+  const panelBtn = document.getElementById("panelBtn");
+  const soundBtn = document.getElementById("soundBtn");
   // --- Play count + time limit (persistent) ---
   const playCountEl = document.getElementById("playCount");
   const timeLeftEl  = document.getElementById("timeLeft");
@@ -858,7 +739,8 @@
     dots.forEach((d,i)=> d.classList.toggle("used", i < missesUsed));
   }
 
-  function playFail(){
+  \1
+    if(!soundEnabled) return;
     // distinct fail sound (short descending buzz), safe if audio blocked
     try{
       if(!audioCtx) return;
@@ -1052,7 +934,8 @@ const endBtn = document.getElementById("endBtn");
   window.addEventListener("touchstart", () => { try{ ensureAudio(); }catch(e){} }, { once:true, passive:true });
 
 
-  function playToneForIndex(idx, ms=140) {
+  \1
+    if(!soundEnabled) return;
     const ctx = ensureAudio();
     const o = ctx.createOscillator();
     const g = ctx.createGain();
@@ -1087,14 +970,7 @@ const endBtn = document.getElementById("endBtn");
   };
   const dist  = (a,b) => Math.hypot(a.cx-b.cx, a.cy-b.cy);
 
-  
-  function setInGame(on){
-    try{
-      if(on) document.body.classList.add("inGame");
-      else document.body.classList.remove("inGame");
-    }catch(e){}
-  }
-function setStatus(s){ statusEl.textContent = s; }
+  function setStatus(s){ statusEl.textContent = s; }
   function setLevel(){ const nEl=document.getElementById("nVal"); if(nEl) nEl.textContent = String(N); }
 
   // ---------- iOS / anti-jump ----------
@@ -1483,11 +1359,6 @@ function setStatus(s){ statusEl.textContent = s; }
   recBtn?.addEventListener("click", startRecording);
   stopRecBtn?.addEventListener("click", stopRecording);
   clearRecBtn?.addEventListener("click", clearRecording);
-  soundBtn?.addEventListener("click", ()=>{
-    soundEnabled = !soundEnabled;
-    if(soundBtn) soundBtn.textContent = soundEnabled ? "Sound: On" : "Sound: Off";
-    if(soundEnabled){ unlockAudioOnce(); beep(440, 60, 0.10); }
-  });
   markRecBtn?.addEventListener("click", (e)=>{ e.preventDefault(); if(isRecordingActive()) markWordBoundary(); });
 
     // Reliable word delimiting on iOS: use pointerdown/touchend (click can be suppressed by preventDefault).
@@ -1589,7 +1460,6 @@ game.classList.add("goldGlow");
   // ---------- Game state ----------
   let N = 2;
   let phase = "idle";
-    setInGame(false);
   let recallInputLocked = false; // idle | showing | recall | transition | ended
   let expectedIndex = 0;
 
@@ -1881,8 +1751,6 @@ game.classList.add("goldGlow");
   }
 
   endBtn.addEventListener("click", () => {
-    setInGame(false);
-
     ensureAudio();
     endGame();
   });
@@ -1918,7 +1786,6 @@ restartFromOverlay.addEventListener("click", () => {
     overlay.classList.remove("show");
     runToken++;
     phase = "idle";
-    setInGame(false);
     N = 2;
     maxNThisSession = 2;
     setLevel();
