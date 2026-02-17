@@ -534,7 +534,44 @@
   #game{
     max-height: calc(100svh - 64px - env(safe-area-inset-bottom));
   }
+
+  :root{
+    --vvh: 100svh;
+    --vvBottom: 0px;
+  }
+  #game{
+    height: var(--vvh);
+    padding-bottom: calc(var(--vvBottom) + env(safe-area-inset-bottom));
+  }
+  #arena{
+    height: calc(var(--vvh) - 120px - var(--vvBottom));
+    max-height: calc(var(--vvh) - 120px - var(--vvBottom));
+  }
+
+  body.panelHidden header .controls-row,
+  body.panelHidden header .voice-wrap,
+  body.panelHidden header .tune-wrap{
+    display:none !important;
+  }
+  body.panelHidden header{
+    padding-bottom: 6px !important;
+  }
+  html, body{
+    height:100%;
+    overflow:hidden;
+    overscroll-behavior:none;
+    touch-action:manipulation;
+  }
+  #game{
+    height:100%;
+    overflow:hidden;
+  }
+  #arena{
+    overflow:hidden;
+  }
 </style>
+
+
 
 
 </head>
@@ -661,6 +698,7 @@
 
   function beep(freq=440, ms=90, gain=0.18){
     if(!soundEnabled) return;
+    if(!soundEnabled) return;
 
     try{
       initAudio();
@@ -696,6 +734,53 @@
 (() => {
   const game   = document.getElementById("game");
   const arena  = document.getElementById("arena");
+
+  const headerEl = document.querySelector("header");
+  const togglePanelBtn = document.getElementById("togglePanelBtn");
+
+  function setPanelHidden(hidden){
+    try{
+      if(hidden) document.body.classList.add("panelHidden");
+      else document.body.classList.remove("panelHidden");
+      localStorage.setItem("panelHidden", hidden ? "1" : "0");
+      layoutFit();
+    }catch(e){}
+  }
+  // load saved state
+  try{ if(localStorage.getItem("panelHidden")==="1") document.body.classList.add("panelHidden"); }catch(e){}
+
+  togglePanelBtn?.addEventListener("click", ()=>{
+    const hidden = !document.body.classList.contains("panelHidden");
+    setPanelHidden(hidden);
+  });
+
+  function layoutFit(){
+    // Make arena always fully visible above Safari bottom bar and below header
+    try{
+      const vv = window.visualViewport;
+      const visibleH = vv ? vv.height : window.innerHeight;
+      const visibleTop = vv ? vv.offsetTop : 0;
+      const bottomOverlap = Math.max(0, window.innerHeight - (visibleH + visibleTop));
+      const headerH = headerEl ? headerEl.offsetHeight : 0;
+
+      // Set game and arena heights in px so iOS can't overlap the bottom bar
+      game.style.height = visibleH + "px";
+      const arenaH = Math.max(120, visibleH - headerH - bottomOverlap);
+      arena.style.height = arenaH + "px";
+      arena.style.maxHeight = arenaH + "px";
+      // keep body from scrolling (prevents bar showing/hiding mid-game)
+      document.documentElement.style.overflow = "hidden";
+      document.body.style.overflow = "hidden";
+    }catch(e){}
+  }
+
+  layoutFit();
+  window.addEventListener("resize", ()=>setTimeout(layoutFit, 60));
+  window.addEventListener("orientationchange", ()=>setTimeout(layoutFit, 250));
+  window.visualViewport?.addEventListener("resize", layoutFit);
+  window.visualViewport?.addEventListener("scroll", layoutFit);
+
+
   const startBtn = document.getElementById("startBtn");
   
   // --- Play count + time limit (persistent) ---
@@ -1398,6 +1483,11 @@ function setStatus(s){ statusEl.textContent = s; }
   recBtn?.addEventListener("click", startRecording);
   stopRecBtn?.addEventListener("click", stopRecording);
   clearRecBtn?.addEventListener("click", clearRecording);
+  soundBtn?.addEventListener("click", ()=>{
+    soundEnabled = !soundEnabled;
+    if(soundBtn) soundBtn.textContent = soundEnabled ? "Sound: On" : "Sound: Off";
+    if(soundEnabled){ unlockAudioOnce(); beep(440, 60, 0.10); }
+  });
   markRecBtn?.addEventListener("click", (e)=>{ e.preventDefault(); if(isRecordingActive()) markWordBoundary(); });
 
     // Reliable word delimiting on iOS: use pointerdown/touchend (click can be suppressed by preventDefault).
