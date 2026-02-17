@@ -1658,7 +1658,7 @@ game.classList.add("goldGlow");
         setStatus(`Almost! Try again. ${remaining} ${remaining === 1 ? "chance" : "chances"} left.`);
       } else {
         // Out of chances => end round as a fail
-        onFail();
+        onFailure();
       }
     }
   }
