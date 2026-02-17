@@ -2,7 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+<meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
 <title>Spatial Memory Trainer</title>
 
 <style>
@@ -616,6 +618,61 @@
 
   <input id="bgFileInput" type="file" accept="image/*" style="display:none" />
 <script>
+  // ---------- Sound (WebAudio with iOS unlock) ----------
+  let audioCtx = null;
+  let audioUnlocked = false;
+
+  function initAudio(){
+    try{
+      if(!audioCtx){
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if(!AC) return;
+        audioCtx = new AC();
+      }
+      if(audioCtx.state === "suspended") audioCtx.resume();
+    }catch(e){}
+  }
+
+  function unlockAudioOnce(){
+    if(audioUnlocked) return;
+    audioUnlocked = true;
+    initAudio();
+  }
+  window.addEventListener("pointerdown", unlockAudioOnce, {once:true, capture:true});
+  window.addEventListener("touchend", unlockAudioOnce, {once:true, capture:true});
+
+  function beep(freq=440, ms=90, gain=0.06){
+    try{
+      initAudio();
+      if(!audioCtx) return;
+      const t0 = audioCtx.currentTime;
+      const osc = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(freq, t0);
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.exponentialRampToValueAtTime(gain, t0 + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + ms/1000);
+      osc.connect(g); g.connect(audioCtx.destination);
+      osc.start(t0);
+      osc.stop(t0 + ms/1000 + 0.02);
+    }catch(e){}
+  }
+
+  function playToneForIndex(i, ms=90){
+    const base = 261.63; // C4
+    const steps = [0,2,4,5,7,9,11,12,14,16,17,19];
+    const s = steps[(i-1) % steps.length];
+    const freq = base * Math.pow(2, s/12);
+    beep(freq, ms, 0.07);
+  }
+  function playFail(){ beep(180, 140, 0.10); }
+  function playSuccess(){ beep(660, 120, 0.08); }
+
+  function hideSafariBars(){
+    try{ window.scrollTo(0, 1); }catch(e){}
+  }
+
 (() => {
   const game   = document.getElementById("game");
   const arena  = document.getElementById("arena");
