@@ -541,7 +541,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
     // ENABLE PLAY after a short settle delay
     try{ const pb=document.getElementById('playBtn'); if(pb){ setTimeout(()=>{ pb.disabled=false; window.diagPush('PLAY ENABLED'); }, 800); } }catch(e){}
 
-    setInterval(()=>renderDiagBanner(), 750);
+    setInterval(()=>{ try{ const pb=document.getElementById('playBtn'); if(pb){ __dlog('PLAYBTN:'+(pb.disabled?'disabled':'enabled')); } }catch(e){} renderDiagBanner(); }, 2000);
     const dumpBtn = document.getElementById('diagDumpBtn');
     dumpBtn && dumpBtn.addEventListener('click', ()=>{
       try{
@@ -682,7 +682,21 @@ window.diagPush('BOOTSTRAP OK');
   <input id="bgFileInput" type="file" accept="image/*" style="display:none" />
 <script>
 try{ window.diagPush && window.diagPush('MAIN SCRIPT START'); }catch(e){}
-document.addEventListener('DOMContentLoaded', ()=>{ try{ window.diagPush && window.diagPush('MAIN DOM READY'); }catch(e){} });
+function __dlog(x){ try{ window.diagPush && window.diagPush(x); }catch(e){} }
+document.addEventListener('DOMContentLoaded', ()=>{ try{ window.diagPush && window.diagPush('MAIN DOM READY');
+    // WIRE BUTTON PROBES
+    try{
+      const ids=['playBtn','moreTimeBtn','endBtn','soundBtn','togglePanelBtn','recordBtn','stopBtn','markBtn'];
+      ids.forEach(id=>{
+        const el=document.getElementById(id);
+        if(!el) return;
+        el.addEventListener('click', ()=>__dlog('CLICK:'+id), {capture:true});
+      });
+      // bg swatches
+      const pal=document.getElementById('bgPalette');
+      if(pal){ pal.addEventListener('click', (e)=>{ const b=e.target && e.target.closest && e.target.closest('.bg-swatch'); if(b){ __dlog('CLICK:bg:'+ (b.dataset && b.dataset.key ? b.dataset.key:'?')); } }, true); }
+    }catch(e){ __dlog('probe-wire-failed:'+e); }
+ }catch(e){} });
 
 (() => {
   const game   = document.getElementById("game");
