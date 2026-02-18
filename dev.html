@@ -1729,6 +1729,9 @@ game.classList.add("goldGlow");
     clearBoard();
     scoreEl.textContent = `N = ${maxNThisSession}`;
     overlay.classList.add("show");
+    overlay.style.display = "flex";
+    overlay.hidden = false;
+    overlay.classList.remove("hidden");
     setStatus("Game ended.");
     setLevel();
 
@@ -1745,7 +1748,12 @@ game.classList.add("goldGlow");
     if(scoreEl) scoreEl.textContent = `Time remaining: ${formatTime(timeLeftS)}`;
     if(overlayLead) overlayLead.textContent = "Tap PayPal to add 5 minutes more of play time for a $1 donation.";
     if(addTimePanelNote) addTimePanelNote.style.display = "none"; // message already in lead
-    if(paypalAddTimeBtn) paypalAddTimeBtn.style.display = "inline-flex";
+    
+  // Back-compat: older builds may call openDonateOverlay()
+  window.openDonateOverlay = openAddTimeOverlay;
+  window.openAddTimeOverlay = openAddTimeOverlay;
+
+if(paypalAddTimeBtn) paypalAddTimeBtn.style.display = "inline-flex";
 
     // Hide the regular support block to reduce clutter while adding time
     try{
