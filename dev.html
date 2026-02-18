@@ -1,10 +1,10 @@
-<!doctype html>
+<!DOCTYPE html>
+
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" name="viewport"/>
 <title>Spatial Memory Trainer</title>
-
 <style>
   :root{
     --bg:#0b1020;
@@ -525,219 +525,89 @@
 
   #panelBody.hidden{ display:none; }
 
-
-/* Add Time / PayPal panel */
-.overlay{
-  position:fixed; inset:0;
-  display:flex; align-items:flex-start; justify-content:center;
-  padding: max(14px, env(safe-area-inset-top)) 16px 16px;
-  background: rgba(0,0,0,0.45);
-  z-index: 99999;
-}
-.overlay.hidden{ display:none; }
-.modal{
-  margin-top: 70px;
-  width:min(520px, 96vw);
-  border-radius: 18px;
-  background: rgba(30,33,42,0.92);
-  border: 1px solid rgba(255,255,255,0.14);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  color: #e9ecf3;
-  box-shadow: 0 18px 60px rgba(0,0,0,0.45);
-}
-.modalHeader{
-  display:flex; align-items:center; justify-content:space-between;
-  padding: 14px 14px 10px 16px;
-  border-bottom: 1px solid rgba(255,255,255,0.10);
-}
-.modalTitle{ font-weight: 700; letter-spacing: .2px; }
-.modalClose{
-  border:0; background: rgba(255,255,255,0.10);
-  color:#fff; border-radius: 12px;
-  width: 38px; height: 32px;
-  font-size: 16px;
-}
-.modalBody{ padding: 14px 16px 16px; }
-.modalText{ font-size: 15px; line-height: 1.35; margin-bottom: 12px; }
-.primaryBtn{
-  width: 100%;
-  padding: 12px 14px;
-  border: 1px solid rgba(255,255,255,0.18);
-  border-radius: 14px;
-  background: rgba(255,255,255,0.12);
-  color: #fff;
-  font-weight: 800;
-  letter-spacing: .2px;
-}
-.primaryBtn:active{ transform: scale(0.99); }
-
 </style>
-
-
-<script>
-window.__diag = window.__diag || {lines:[]};
-window.__dpush = function(m){
-  try{
-    window.__diag.lines.push(String(m));
-    if(window.__diag.lines.length>60) window.__diag.lines = window.__diag.lines.slice(-60);
-    var el=document.getElementById('diagLine');
-    if(el) el.textContent = 'DIAG: ' + window.__diag.lines.slice(-1)[0];
-  }catch(e){}
-};
-window.addEventListener('error', function(e){
-  try{ window.__dpush('ERROR: '+(e && e.message ? e.message : 'script error')); }catch(_){}
-});
-window.addEventListener('unhandledrejection', function(e){
-  try{ window.__dpush('PROMISE: '+(e && e.reason ? e.reason : 'unhandled')); }catch(_){}
-});
-window.__dpush('bootstrap ok');
-</script>
 </head>
-
-
 <body>
-<div id="diagBar" style="position:fixed;top:0;left:0;right:0;z-index:999999;background:#111;color:#0f0;padding:6px 10px;font:12px/1.35 ui-monospace, SFMono-Regular, Menlo, monospace;">
-  <span id="diagLine">DIAG: boot</span>
-  <button id="diagDump" style="float:right;background:#0f0;color:#111;border:0;border-radius:10px;padding:4px 10px;font-weight:800;">Dump</button>
-</div>
-<div style="height:34px"></div>
-
 <header>
-  <div id="controls">
-    <button id="startBtn" class="primary">Play</button>
-    <button id="panelBtn" title="Show/hide the control panel">Panel</button>
-    
-    <div id="missBar" class="missBar" title="Mistakes allowed (resets each round)">
-      <span class="missDot"></span><span class="missDot"></span><span class="missDot"></span>
-    </div>
+<div id="controls">
+<button class="primary" id="startBtn">Play</button>
+<button id="panelBtn" title="Show/hide the control panel">Panel</button>
+<div class="missBar" id="missBar" title="Mistakes allowed (resets each round)">
+<span class="missDot"></span><span class="missDot"></span><span class="missDot"></span>
+</div>
 <button id="endBtn" title="End game and show score">End</button>
-
-    
-
-    <div id="level"><span class="pill">N = <b id="nVal">2</b></span><span class="pill" style="margin-left:10px;">Words: <b id="wordCount">0</b></span><span class="pill" style="margin-left:10px;">Plays: <b id="playCount">0</b></span><span class="pill" style="margin-left:10px;">Time: <b id="timeLeft">10:00</b></span><button id="addTimeBtn" title="Add more play time" style="margin-left:8px;" onclick="window.openDonateOverlay && window.openDonateOverlay();">Add Time</button></div>
+<div id="level"><span class="pill">N = <b id="nVal">2</b></span><span class="pill" style="margin-left:10px;">Words: <b id="wordCount">0</b></span><span class="pill" style="margin-left:10px;">Plays: <b id="playCount">0</b></span><span class="pill" style="margin-left:10px;">Time: <b id="timeLeft">10:00</b></span><button id="addTimeBtn" style="margin-left:8px;" title="Add more play time">Add Time</button></div>
 <div id="panelBody">
-<div class="bg-palette-wrap" aria-label="Background">
-      <span class="bg-label">Background</span>
-      <div id="bgPalette" class="bg-palette" role="listbox" aria-label="Background colors"></div>
-
-    <div class="voice-wrap" aria-label="Voice recording">
-      <button id="uploadBtn" class="tune-btn wide" title="Upload photo overlay (tap) / clear (hold)">Upload</button>
-      <button id="recBtn" class="tune-btn wide" title="Record voice (tap once per word as you speak)">Record</button>
-      <button id="stopRecBtn" class="tune-btn" title="Stop recording" disabled>Stop</button>
-      <button id="clearRecBtn" class="tune-btn" title="Clear recording" disabled>Clear</button>
-<button id="markRecBtn" class="tune-btn" title="Mark word boundary (use if screen taps miss)" disabled>Mark</button>
+<div aria-label="Background" class="bg-palette-wrap">
+<span class="bg-label">Background</span>
+<div aria-label="Background colors" class="bg-palette" id="bgPalette" role="listbox"></div>
+<div aria-label="Voice recording" class="voice-wrap">
+<button class="tune-btn wide" id="uploadBtn" title="Upload photo overlay (tap) / clear (hold)">Upload</button>
+<button class="tune-btn wide" id="recBtn" title="Record voice (tap once per word as you speak)">Record</button>
+<button class="tune-btn" disabled="" id="stopRecBtn" title="Stop recording">Stop</button>
+<button class="tune-btn" disabled="" id="clearRecBtn" title="Clear recording">Clear</button>
+<button class="tune-btn" disabled="" id="markRecBtn" title="Mark word boundary (use if screen taps miss)">Mark</button>
 </div>
 </div>
-
-    <div class="tune-wrap" aria-label="Training tuning">
-      <div class="tune" role="group" aria-label="Timing">
-        <span class="tune-label">Timing</span>
-        <button class="tune-btn" id="paceMinus" aria-label="Timing down">−</button>
-        <div class="dots" id="paceDots" aria-hidden="true"></div>
-        <button class="tune-btn" id="pacePlus" aria-label="Timing up">+</button>
-      </div>
-
-      <div class="tune" role="group" aria-label="Circle size">
-        <span class="tune-label">Size</span>
-        <button class="tune-btn" id="sizeMinus" aria-label="Size down">−</button>
-        <div class="dots" id="sizeDots" aria-hidden="true"></div>
-        <button class="tune-btn" id="sizePlus" aria-label="Size up">+</button>
-      </div>
-    </div>
-
-  </div>
-
-  <div style="display:flex; gap:10px; align-items:center;">
-    <div id="status">Press Play once. Then it runs continuously.</div>
-    <button id="closeBtn" title="Close">✕</button>
-  </div>
+<div aria-label="Training tuning" class="tune-wrap">
+<div aria-label="Timing" class="tune" role="group">
+<span class="tune-label">Timing</span>
+<button aria-label="Timing down" class="tune-btn" id="paceMinus">−</button>
+<div aria-hidden="true" class="dots" id="paceDots"></div>
+<button aria-label="Timing up" class="tune-btn" id="pacePlus">+</button>
+</div>
+<div aria-label="Circle size" class="tune" role="group">
+<span class="tune-label">Size</span>
+<button aria-label="Size down" class="tune-btn" id="sizeMinus">−</button>
+<div aria-hidden="true" class="dots" id="sizeDots"></div>
+<button aria-label="Size up" class="tune-btn" id="sizePlus">+</button>
+</div>
+</div>
+</div>
+<div style="display:flex; gap:10px; align-items:center;">
+<div id="status">Press Play once. Then it runs continuously.</div>
+<button id="closeBtn" title="Close">✕</button>
+</div>
 </div>
 </header>
-
 <div id="playPanel">
-  <div id="game">
-    <div id="arena"></div>
-    <svg id="linesLayer" aria-hidden="true"></svg>
-
-    <div id="photoOverlay" aria-hidden="true">
-      <img id="photoOverlayImg" alt="Uploaded photo" />
-    </div>
-
-
-    <div id="overlay" role="dialog" aria-modal="true">
-      <div id="panel">
-        <h2>Final Score</h2>
+<div id="game">
+<div id="arena"></div>
+<svg aria-hidden="true" id="linesLayer"></svg>
+<div aria-hidden="true" id="photoOverlay">
+<img alt="Uploaded photo" id="photoOverlayImg"/>
+</div>
+<div aria-modal="true" id="overlay" role="dialog">
+<div id="panel">
+<h2>Final Score</h2>
 <div id="score">N = 2</div>
-        <p>
+<p>
           This is the <b>highest N</b> you reached in this session.
           
         </p>
-        <div class="row">
-          <button id="restartFromOverlay">Play Again</button>
+<div class="row">
+<button id="restartFromOverlay">Play Again</button>
+<button id="paypalAddTimeBtn" style="display:none;">PayPal ($1)</button>
           <button id="closeFromOverlay">Close</button>
-        </div>
+</div>
+<div id="addTimePanelNote" style="display:none; margin-top:12px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.14); color:var(--muted); font-size:13px;">Tap PayPal to add 5 minutes more of play time for a $1 donation.</div>
 
         <div style="margin-top:12px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.14);">
-          <div style="color:var(--muted); font-size:13px; margin-bottom:8px;">
+<div style="color:var(--muted); font-size:13px; margin-bottom:8px;">
             If you enjoy this trainer, please consider supporting development:
           </div>
-          <a href="https://www.paypal.com/paypalme/ConstantinosRagazas" target="_blank" rel="noopener"
-             style="display:inline-flex; align-items:center; gap:8px; padding:10px 12px; border-radius:12px;
+<a href="https://www.paypal.com/paypalme/ConstantinosRagazas" rel="noopener" style="display:inline-flex; align-items:center; gap:8px; padding:10px 12px; border-radius:12px;
                     border:1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.08); color:var(--text);
-                    text-decoration:none; font-weight:800;">
+                    text-decoration:none; font-weight:800;" target="_blank">
             Donate via PayPal
           </a>
-        </div>
-      </div>
-    </div>
-
-  </div>
 </div>
-
-
-  <input id="bgFileInput" type="file" accept="image/*" style="display:none" />
+</div>
+</div>
+</div>
+</div>
+<input accept="image/*" id="bgFileInput" style="display:none" type="file"/>
 <script>
-try{ window.__dpush && window.__dpush('main script start'); }catch(e){}
-
-document.addEventListener('DOMContentLoaded', ()=>{
-  try{ window.__dpush('DOM ready'); }catch(e){}
-  try{
-    const add=document.getElementById('addTimeBtn');
-    const ov=document.getElementById('donateOverlay');
-    window.__dpush('addTimeBtn='+(!!add)+' disabled='+(add?add.disabled:'na')+' onclick='+(add?typeof add.onclick:'na'));
-    window.__dpush('donateOverlay='+(!!ov));
-    // capture clicks anywhere
-    document.addEventListener('click', (e)=>{
-      const t=e.target;
-      const id=t && t.id ? t.id : '';
-      if(id) window.__dpush('click #' + id);
-    }, true);
-    // explicit click listener on addTimeBtn for diag
-    if(add){
-      add.addEventListener('click', ()=>window.__dpush('addTimeBtn handler fired'), {capture:true});
-      add.addEventListener('pointerdown', ()=>window.__dpush('addTimeBtn pointerdown'), {capture:true});
-    }
-    const dump=document.getElementById('diagDump');
-    dump && dump.addEventListener('click', ()=>{
-      try{
-        const state = {
-          lines: window.__diag.lines,
-          addTimeBtn: !!add,
-          addDisabled: add?add.disabled:null,
-          addOnclick: add?String(add.getAttribute('onclick')):null,
-          overlay: !!ov,
-          overlayHidden: ov?ov.classList.contains('hidden'):null
-        };
-        alert('DIAG\n'+JSON.stringify(state,null,2));
-      }catch(e){ alert('DIAG dump error '+e); }
-    });
-  }catch(e){
-    try{ window.__dpush('probe error: '+e); }catch(_){}
-  }
-});
-
-
 
   // === iOS Safari bottom bar mitigation (visualViewport) ===
   function __updateViewportVars(){
@@ -798,7 +668,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
   const STORAGE_PLAY = "smt_total_plays";
   const STORAGE_TIME = "smt_time_left_seconds";
   const DEFAULT_MINUTES = 10; // initial allowed minutes
-  const ADD_MINUTES = 5;      // per "More Time" press
+  const ADD_MINUTES = 5;      // per "Add Time" press
   let totalPlays = 0;
   let timeLeftS  = 0;
   let playTimer = null;
@@ -835,7 +705,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
         // time expired -> end current session and disable Play
         try{ runToken++; }catch(e){}
         try{ showFinalScore(); }catch(e){}
-        try{ setStatus("Time is up. Tap \"More Time\" to continue."); }catch(e){}
+        try{ setStatus("Time is up. Tap \"Add Time\" to continue."); }catch(e){}
         renderPlayMeta();
       }
     }, 1000);
@@ -847,7 +717,10 @@ document.addEventListener('DOMContentLoaded', ()=>{
   ensurePlayTimer();
 
   if(addTimeBtn){
-    addTimeBtn.addEventListener("click", ()=>{ window.openDonateOverlay && window.openDonateOverlay(); });
+    addTimeBtn.addEventListener("click", ()=>{
+      ensureAudio();
+      openAddTimeOverlay();
+    });
   }
 
 
@@ -1851,12 +1724,68 @@ game.classList.add("goldGlow");
   }
 
   function showFinalScore(){
+    restoreFinalOverlayUI();
     phase = "ended";
     clearBoard();
     scoreEl.textContent = `N = ${maxNThisSession}`;
     overlay.classList.add("show");
     setStatus("Game ended.");
     setLevel();
+
+  // ----- Overlay modes: "final" vs "addtime" -----
+  const overlayTitle = (panel && panel.querySelector("h2")) ? panel.querySelector("h2") : null;
+  const overlayLead  = (panel && panel.querySelector("p")) ? panel.querySelector("p") : null;
+  const paypalAddTimeBtn = document.getElementById("paypalAddTimeBtn");
+  const addTimePanelNote = document.getElementById("addTimePanelNote");
+  let overlayMode = "final";
+
+  function openAddTimeOverlay(){
+    overlayMode = "addtime";
+    if(overlayTitle) overlayTitle.textContent = "Add Time";
+    if(scoreEl) scoreEl.textContent = `Time remaining: ${formatTime(timeLeftS)}`;
+    if(overlayLead) overlayLead.textContent = "Tap PayPal to add 5 minutes more of play time for a $1 donation.";
+    if(addTimePanelNote) addTimePanelNote.style.display = "none"; // message already in lead
+    if(paypalAddTimeBtn) paypalAddTimeBtn.style.display = "inline-flex";
+
+    // Hide the regular support block to reduce clutter while adding time
+    try{
+      const supportBlock = panel.querySelector('a[href*="paypal"]').closest('div[style*="margin-top"]');
+      if(supportBlock) supportBlock.style.display = "none";
+    }catch(e){}
+
+    // Buttons
+    if(restartFromOverlay) restartFromOverlay.textContent = "Cancel";
+    if(closeFromOverlay) closeFromOverlay.textContent = "Close";
+    overlay.classList.add("show");
+    setStatus("Add Time panel opened.");
+  }
+
+  function restoreFinalOverlayUI(){
+    overlayMode = "final";
+    if(overlayTitle) overlayTitle.textContent = "Final Score";
+    if(overlayLead) overlayLead.textContent = "Take a breath. Want to try again?";
+    if(paypalAddTimeBtn) paypalAddTimeBtn.style.display = "none";
+    try{
+      const supportBlock = panel.querySelector('a[href*="paypal"]').closest('div[style*="margin-top"]');
+      if(supportBlock) supportBlock.style.display = "";
+    }catch(e){}
+    if(restartFromOverlay) restartFromOverlay.textContent = "Play Again";
+    if(closeFromOverlay) closeFromOverlay.textContent = "Close";
+  }
+
+  if(paypalAddTimeBtn){
+    paypalAddTimeBtn.addEventListener("click", (e)=>{
+      e.preventDefault();
+      // add 5 minutes and open PayPal in a new tab
+      timeLeftS += (ADD_MINUTES*60);
+      savePlayMeta();
+      renderPlayMeta();
+      try{ window.open("https://www.paypal.com/paypalme/ConstantinosRagazas", "_blank"); }catch(err){}
+      overlay.classList.remove("show");
+      setStatus(`Added ${ADD_MINUTES} minutes. Thank you!`);
+    });
+  }
+
   }
 
   function attemptClose(){
@@ -1880,10 +1809,22 @@ game.classList.add("goldGlow");
 
   closeFromOverlay.addEventListener("click", () => {
     overlay.classList.remove("show");
+    if(overlayMode === "addtime"){
+      restoreFinalOverlayUI();
+      setStatus("Add Time panel closed.");
+      return;
+    }
     setStatus("Score panel closed.");
   });
 restartFromOverlay.addEventListener("click", () => {
-    // If we are in photoMode, keep overlay shown; otherwise hide it.
+    // In Add Time mode, this button is "Cancel" (just close the panel)
+    if(overlayMode === "addtime"){
+      overlay.classList.remove("show");
+      restoreFinalOverlayUI();
+      setStatus("Add Time cancelled.");
+      return;
+    }
+    // Final Score mode: Play Again
     if(!overlay.classList.contains("photoMode")) overlay.classList.remove("show");
     startGame();
   });
@@ -1891,7 +1832,7 @@ restartFromOverlay.addEventListener("click", () => {
   function startGame(){
     if(timeLeftS <= 0){
       renderPlayMeta();
-      setStatus("No time left. Tap \"More Time\".");
+      setStatus("No time left. Tap \"Add Time\".");
       return;
     }
     // Count a Play press (persistent)
@@ -1916,20 +1857,5 @@ restartFromOverlay.addEventListener("click", () => {
 
 })();
 </script>
-
-<!-- Add Time / PayPal panel -->
-<div id="donateOverlay" class="overlay hidden" aria-hidden="true">
-  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="donateTitle">
-    <div class="modalHeader">
-      <div id="donateTitle" class="modalTitle">Add Play Time</div>
-      <button id="donateCloseBtn" class="modalClose" aria-label="Close">✕</button>
-    </div>
-    <div class="modalBody">
-      <div class="modalText">Tap <b>PayPal</b> to add <b>5 minutes</b> more of play time for a <b>$1 donation</b>.</div>
-      <button id="paypalDonateBtn" class="primaryBtn">PayPal</button>
-    </div>
-  </div>
-</div>
-
 </body>
 </html>
