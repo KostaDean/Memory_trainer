@@ -541,7 +541,19 @@ document.addEventListener('DOMContentLoaded', ()=>{
     // ENABLE PLAY after a short settle delay
     try{ const pb=document.getElementById('playBtn'); if(pb){ setTimeout(()=>{ pb.disabled=false; window.diagPush('PLAY ENABLED'); }, 800); } }catch(e){}
 
-    setInterval(()=>{ try{ const pb=document.getElementById('playBtn'); if(pb){ __dlog('PLAYBTN:'+(pb.disabled?'disabled':'enabled')); } }catch(e){} renderDiagBanner(); }, 2000);
+    setInterval(()=>{ 
+  try{
+    const sb=document.getElementById('startBtn');
+    const status={
+      startDisabled: sb?!!sb.disabled: null,
+      phase: (typeof phase!=='undefined'?phase:undefined),
+      N: (typeof currentN!=='undefined'?currentN:undefined),
+      circles: (typeof circles!=='undefined'?circles.length:undefined)
+    };
+    window.diagPush('STATUS:' + JSON.stringify(status));
+  }catch(e){}
+  renderDiagBanner();
+}, 2500);
     const dumpBtn = document.getElementById('diagDumpBtn');
     dumpBtn && dumpBtn.addEventListener('click', ()=>{
       try{
@@ -686,7 +698,16 @@ function __dlog(x){ try{ window.diagPush && window.diagPush(x); }catch(e){} }
 document.addEventListener('DOMContentLoaded', ()=>{ try{ window.diagPush && window.diagPush('MAIN DOM READY');
     // WIRE BUTTON PROBES
     try{
-      const ids=['playBtn','moreTimeBtn','endBtn','soundBtn','togglePanelBtn','recordBtn','stopBtn','markBtn'];
+      document.addEventListener('pointerdown', (e)=>{
+        const t=e.target;
+        const id=(t && t.id) ? t.id : '';
+        const tag=(t && t.tagName) ? t.tagName.toLowerCase() : '';
+        window.diagPush('POINTERDOWN:any ' + (id?('#'+id+' '):'') + tag);
+      }, true);
+    }catch(e){}
+
+    try{
+      const ids=['startBtn','addTimeBtn','endBtn','uploadBtn','recBtn','stopRecBtn','clearRecBtn','markRecBtn','paceMinus','pacePlus','sizeMinus','sizePlus','closeBtn','restartFromOverlay','closeFromOverlay'];
       ids.forEach(id=>{
         const el=document.getElementById(id);
         if(!el) return;
@@ -694,6 +715,8 @@ document.addEventListener('DOMContentLoaded', ()=>{ try{ window.diagPush && wind
       });
       // bg swatches
       const pal=document.getElementById('bgPalette');
+      const arena=document.getElementById('arena');
+      if(arena){ arena.addEventListener('pointerdown', ()=>__dlog('CLICK:arena'), {capture:true}); arena.addEventListener('click', ()=>__dlog('CLICK:arena(click)'), {capture:true}); }
       if(pal){ pal.addEventListener('click', (e)=>{ const b=e.target && e.target.closest && e.target.closest('.bg-swatch'); if(b){ __dlog('CLICK:bg:'+ (b.dataset && b.dataset.key ? b.dataset.key:'?')); } }, true); }
     }catch(e){ __dlog('probe-wire-failed:'+e); }
  }catch(e){} });
