@@ -21,7 +21,6 @@
     --bgB:#0b1020;
 
     --gameA: rgba(16,26,53,0.78);
-  diag('after bg init');
     --gameB: rgba(16,26,53,0.78);
   }
 
@@ -522,13 +521,73 @@
 
 </style>
 
+
+<script>
+try{ window.diagPush && window.diagPush('SCRIPT START'); }catch(e){}
+
+function renderDiagBanner(extra){
+  try{
+    const msgEl = document.getElementById('diagMsg');
+    if(!msgEl) return;
+    const lines = (window.__diagLines||[]).slice(-8);
+    let txt = lines.join(' | ');
+    if(extra) txt += ' | ' + extra;
+    msgEl.textContent = txt;
+  }catch(e){}
+}
+document.addEventListener('DOMContentLoaded', ()=>{
+  try{
+    renderDiagBanner('DOM READY');
+    // ENABLE PLAY after a short settle delay
+    try{ const pb=document.getElementById('playBtn'); if(pb){ setTimeout(()=>{ pb.disabled=false; window.diagPush('PLAY ENABLED'); }, 800); } }catch(e){}
+
+    setInterval(()=>renderDiagBanner(), 750);
+    const dumpBtn = document.getElementById('diagDumpBtn');
+    dumpBtn && dumpBtn.addEventListener('click', ()=>{
+      try{
+        const s = {
+          diag: (window.__diagLines||[]),
+          phase: (typeof phase!=='undefined'?phase:undefined),
+          N: (typeof currentN!=='undefined'?currentN:undefined),
+          circles: (typeof circles!=='undefined'?circles.length:undefined),
+          seqLen: (typeof sequence!=='undefined'?sequence.length:undefined),
+          idx: (typeof recallIndex!=='undefined'?recallIndex:undefined),
+          timeLeft: (typeof remainingSeconds!=='undefined'?remainingSeconds:undefined),
+          plays: (typeof totalPlays!=='undefined'?totalPlays:undefined)
+        };
+        alert('DIAG\n' + JSON.stringify(s, null, 2));
+      }catch(e){ alert('DIAG dump failed: '+e); }
+    });
+  }catch(e){}
+});
+
+
+/* Ultra-early DIAG bootstrap (works even before body exists) */
+window.__diagLines = window.__diagLines || [];
+window.diagPush = function(msg){
+  try{
+    window.__diagLines.push(String(msg));
+    // keep last 30
+    if(window.__diagLines.length > 30) window.__diagLines = window.__diagLines.slice(-30);
+  }catch(e){}
+};
+window.addEventListener('error', function(e){
+  try{ window.diagPush('ERROR: ' + (e && e.message ? e.message : 'script error')); }catch(_){}
+});
+window.addEventListener('unhandledrejection', function(e){
+  try{ window.diagPush('PROMISE: ' + (e && e.reason ? e.reason : 'unhandled')); }catch(_){}
+});
+window.diagPush('BOOTSTRAP OK');
+</script>
 </head>
 
+
 <body>
-<div id="diagBanner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:999999;background:#0b5; color:#001; padding:6px 10px; font:12px/1.35 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
-  <b>DIAG</b> <span id="diagMsg">booting…</span>
-  <button id="diagDumpBtn" style="float:right;background:#001;color:#fff;border:0;border-radius:10px;padding:4px 10px;font-weight:600;">Dump</button>
+<div id="diagBanner" style="position:fixed;top:0;left:0;right:0;z-index:999999;background:#b00020;color:#fff;padding:8px 10px;font:12px/1.35 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
+  <b>DIAG BUILD</b> <span id="diagMsg">Loading…</span>
+  <button id="diagDumpBtn" style="float:right;background:#111;color:#fff;border:0;border-radius:10px;padding:4px 10px;font-weight:700;">Dump</button>
 </div>
+<div style="height:36px"></div>
 
 <header>
   <div id="controls">
@@ -622,22 +681,6 @@
 
   <input id="bgFileInput" type="file" accept="image/*" style="display:none" />
 <script>
-/* ==== DIAGNOSTIC (non-invasive) ==== */
-const __DIAG = { last:'', t0: (performance && performance.now ? performance.now() : Date.now()) };
-function diag(msg){
-  try{
-    __DIAG.last = String(msg);
-    const b=document.getElementById('diagBanner');
-    const m=document.getElementById('diagMsg');
-    if(m) m.textContent = __DIAG.last;
-    if(b) b.style.display='block';
-  }catch(e){}
-}
-window.addEventListener('error', (e)=>{ try{ diag('ERROR: ' + (e?.message||'script error')); }catch(_){} });
-window.addEventListener('unhandledrejection', (e)=>{ try{ diag('PROMISE: ' + (e?.reason||'unhandled')); }catch(_){} });
-diag('script start');
-
-
 (() => {
   const game   = document.getElementById("game");
   const arena  = document.getElementById("arena");
@@ -1360,8 +1403,7 @@ const endBtn = document.getElementById("endBtn");
   game.addEventListener("touchend", (e)=>{ tryMarkFromEvent(e); }, {capture:true, passive:false});
 
 
-function diag('before bg init');
-  initBackgroundPalette(opts){
+function initBackgroundPalette(opts){
     const {
       containerId = "bgPalette",
       defaultKey = "deepBlue",
