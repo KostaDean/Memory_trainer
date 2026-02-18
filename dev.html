@@ -728,6 +728,44 @@
   const playCountEl = document.getElementById("playCount");
   const timeLeftEl  = document.getElementById("timeLeft");
   const addTimeBtn  = document.getElementById("addTimeBtn");
+
+  // --- Add Time / PayPal overlay wiring (v2) ---
+  const PAYPAL_URL = "https://www.paypal.me/ConstantinosRagazas/1";
+  const ADD_TIME_SECONDS = 5 * 60;
+
+  const donateOverlay = document.getElementById("donateOverlay");
+  const donateCloseBtn = document.getElementById("donateCloseBtn");
+  const paypalDonateBtn = document.getElementById("paypalDonateBtn");
+
+  function openDonateOverlay(){
+    if(!donateOverlay) return;
+    donateOverlay.classList.remove("hidden");
+    donateOverlay.setAttribute("aria-hidden","false");
+  }
+  function closeDonateOverlay(){
+    if(!donateOverlay) return;
+    donateOverlay.classList.add("hidden");
+    donateOverlay.setAttribute("aria-hidden","true");
+  }
+
+  donateCloseBtn && donateCloseBtn.addEventListener("click", closeDonateOverlay);
+  donateOverlay && donateOverlay.addEventListener("click", (e)=>{ if(e.target===donateOverlay) closeDonateOverlay(); });
+  document.addEventListener("keydown", (e)=>{ if(e.key==="Escape") closeDonateOverlay(); });
+
+  paypalDonateBtn && paypalDonateBtn.addEventListener("click", ()=>{
+    // Add time immediately, then open PayPal
+    try{
+      if(typeof timeLeftS !== "undefined" && Number.isFinite(timeLeftS)){
+        timeLeftS += ADD_TIME_SECONDS;
+      }
+      if(typeof savePlayMeta === "function") savePlayMeta();
+      if(typeof renderPlayMeta === "function") renderPlayMeta();
+    }catch(_){}
+    closeDonateOverlay();
+    window.open(PAYPAL_URL, "_blank", "noopener,noreferrer");
+  });
+
+
   const STORAGE_PLAY = "smt_total_plays";
   const STORAGE_TIME = "smt_time_left_seconds";
   const DEFAULT_MINUTES = 10; // initial allowed minutes
