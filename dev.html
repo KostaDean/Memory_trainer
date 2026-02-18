@@ -625,7 +625,7 @@
             Tap <b>PayPal</b> to add <b>5 minutes</b> more of play time for a <b>$1</b> donation.
           </div>
           <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-            <a id="addTimePayPalLink" href="#" target="_blank" rel="noopener"
+            <a id="addTimePayPalLink" href="https://www.paypal.com/paypalme/ConstantinosRagazas/1" target="_blank" rel="noopener"
                style="display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:10px 12px; border-radius:12px;
                       border:1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.10); color:var(--text);
                       text-decoration:none; font-weight:800;">
@@ -1347,12 +1347,11 @@ const endBtn = document.getElementById("endBtn");
     }
     if(addPayLink){
       addPayLink.addEventListener("click", (e)=>{
-        e.preventDefault();
-        // grant time immediately, then open PayPal (Safari may block popups if not direct)
+        // Add time immediately, then let the link navigate to PayPal.
         addPlayTime(ADD_TIME_SECONDS);
-        try{ ensurePlayTimer(); }catch(_){} 
-        try{ window.open(PAYPAL_ADD_TIME_URL, "_blank", "noopener"); }catch(_){} 
-      }, {passive:false});
+        try{ ensurePlayTimer(); }catch(_){}
+        // Do NOT preventDefault here—iOS Safari is more reliable with normal link navigation.
+      });
     }
   })();
   const WORD_PAD_BEFORE_MS = 90;
