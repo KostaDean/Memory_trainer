@@ -526,16 +526,17 @@
   #panelBody.hidden{ display:none; }
 
 
-/* Add Time / PayPal donation overlay */
+/* Add Time / PayPal panel */
 .overlay{
   position:fixed; inset:0;
   display:flex; align-items:flex-start; justify-content:center;
-  padding: 70px 16px 16px;
+  padding: max(14px, env(safe-area-inset-top)) 16px 16px;
   background: rgba(0,0,0,0.45);
   z-index: 99999;
 }
 .overlay.hidden{ display:none; }
 .modal{
+  margin-top: 70px;
   width:min(520px, 96vw);
   border-radius: 18px;
   background: rgba(30,33,42,0.92);
@@ -573,9 +574,35 @@
 
 </style>
 
+
+<script>
+window.__diag = window.__diag || {lines:[]};
+window.__dpush = function(m){
+  try{
+    window.__diag.lines.push(String(m));
+    if(window.__diag.lines.length>60) window.__diag.lines = window.__diag.lines.slice(-60);
+    var el=document.getElementById('diagLine');
+    if(el) el.textContent = 'DIAG: ' + window.__diag.lines.slice(-1)[0];
+  }catch(e){}
+};
+window.addEventListener('error', function(e){
+  try{ window.__dpush('ERROR: '+(e && e.message ? e.message : 'script error')); }catch(_){}
+});
+window.addEventListener('unhandledrejection', function(e){
+  try{ window.__dpush('PROMISE: '+(e && e.reason ? e.reason : 'unhandled')); }catch(_){}
+});
+window.__dpush('bootstrap ok');
+</script>
 </head>
 
+
 <body>
+<div id="diagBar" style="position:fixed;top:0;left:0;right:0;z-index:999999;background:#111;color:#0f0;padding:6px 10px;font:12px/1.35 ui-monospace, SFMono-Regular, Menlo, monospace;">
+  <span id="diagLine">DIAG: boot</span>
+  <button id="diagDump" style="float:right;background:#0f0;color:#111;border:0;border-radius:10px;padding:4px 10px;font-weight:800;">Dump</button>
+</div>
+<div style="height:34px"></div>
+
 <header>
   <div id="controls">
     <button id="startBtn" class="primary">Play</button>
@@ -588,7 +615,7 @@
 
     
 
-    <div id="level"><span class="pill">N = <b id="nVal">2</b></span><span class="pill" style="margin-left:10px;">Words: <b id="wordCount">0</b></span><span class="pill" style="margin-left:10px;">Plays: <b id="playCount">0</b></span><span class="pill" style="margin-left:10px;">Time: <b id="timeLeft">10:00</b></span><button id="addTimeBtn" title="Add more play time" style="margin-left:8px;">Add Time</button></div>
+    <div id="level"><span class="pill">N = <b id="nVal">2</b></span><span class="pill" style="margin-left:10px;">Words: <b id="wordCount">0</b></span><span class="pill" style="margin-left:10px;">Plays: <b id="playCount">0</b></span><span class="pill" style="margin-left:10px;">Time: <b id="timeLeft">10:00</b></span><button id="addTimeBtn" title="Add more play time" style="margin-left:8px;" onclick="window.openDonateOverlay && window.openDonateOverlay();">Add Time</button></div>
 <div id="panelBody">
 <div class="bg-palette-wrap" aria-label="Background">
       <span class="bg-label">Background</span>
@@ -671,6 +698,46 @@
 
   <input id="bgFileInput" type="file" accept="image/*" style="display:none" />
 <script>
+try{ window.__dpush && window.__dpush('main script start'); }catch(e){}
+
+document.addEventListener('DOMContentLoaded', ()=>{
+  try{ window.__dpush('DOM ready'); }catch(e){}
+  try{
+    const add=document.getElementById('addTimeBtn');
+    const ov=document.getElementById('donateOverlay');
+    window.__dpush('addTimeBtn='+(!!add)+' disabled='+(add?add.disabled:'na')+' onclick='+(add?typeof add.onclick:'na'));
+    window.__dpush('donateOverlay='+(!!ov));
+    // capture clicks anywhere
+    document.addEventListener('click', (e)=>{
+      const t=e.target;
+      const id=t && t.id ? t.id : '';
+      if(id) window.__dpush('click #' + id);
+    }, true);
+    // explicit click listener on addTimeBtn for diag
+    if(add){
+      add.addEventListener('click', ()=>window.__dpush('addTimeBtn handler fired'), {capture:true});
+      add.addEventListener('pointerdown', ()=>window.__dpush('addTimeBtn pointerdown'), {capture:true});
+    }
+    const dump=document.getElementById('diagDump');
+    dump && dump.addEventListener('click', ()=>{
+      try{
+        const state = {
+          lines: window.__diag.lines,
+          addTimeBtn: !!add,
+          addDisabled: add?add.disabled:null,
+          addOnclick: add?String(add.getAttribute('onclick')):null,
+          overlay: !!ov,
+          overlayHidden: ov?ov.classList.contains('hidden'):null
+        };
+        alert('DIAG\n'+JSON.stringify(state,null,2));
+      }catch(e){ alert('DIAG dump error '+e); }
+    });
+  }catch(e){
+    try{ window.__dpush('probe error: '+e); }catch(_){}
+  }
+});
+
+
 
   // === iOS Safari bottom bar mitigation (visualViewport) ===
   function __updateViewportVars(){
@@ -728,48 +795,10 @@
   const playCountEl = document.getElementById("playCount");
   const timeLeftEl  = document.getElementById("timeLeft");
   const addTimeBtn  = document.getElementById("addTimeBtn");
-
-  // --- Add Time / PayPal overlay wiring (v2) ---
-  const PAYPAL_URL = "https://www.paypal.me/ConstantinosRagazas/1";
-  const ADD_TIME_SECONDS = 5 * 60;
-
-  const donateOverlay = document.getElementById("donateOverlay");
-  const donateCloseBtn = document.getElementById("donateCloseBtn");
-  const paypalDonateBtn = document.getElementById("paypalDonateBtn");
-
-  function openDonateOverlay(){
-    if(!donateOverlay) return;
-    donateOverlay.classList.remove("hidden");
-    donateOverlay.setAttribute("aria-hidden","false");
-  }
-  function closeDonateOverlay(){
-    if(!donateOverlay) return;
-    donateOverlay.classList.add("hidden");
-    donateOverlay.setAttribute("aria-hidden","true");
-  }
-
-  donateCloseBtn && donateCloseBtn.addEventListener("click", closeDonateOverlay);
-  donateOverlay && donateOverlay.addEventListener("click", (e)=>{ if(e.target===donateOverlay) closeDonateOverlay(); });
-  document.addEventListener("keydown", (e)=>{ if(e.key==="Escape") closeDonateOverlay(); });
-
-  paypalDonateBtn && paypalDonateBtn.addEventListener("click", ()=>{
-    // Add time immediately, then open PayPal
-    try{
-      if(typeof timeLeftS !== "undefined" && Number.isFinite(timeLeftS)){
-        timeLeftS += ADD_TIME_SECONDS;
-      }
-      if(typeof savePlayMeta === "function") savePlayMeta();
-      if(typeof renderPlayMeta === "function") renderPlayMeta();
-    }catch(_){}
-    closeDonateOverlay();
-    window.open(PAYPAL_URL, "_blank", "noopener,noreferrer");
-  });
-
-
   const STORAGE_PLAY = "smt_total_plays";
   const STORAGE_TIME = "smt_time_left_seconds";
   const DEFAULT_MINUTES = 10; // initial allowed minutes
-  const ADD_MINUTES = 5;      // per "Add Time" press
+  const ADD_MINUTES = 5;      // per "More Time" press
   let totalPlays = 0;
   let timeLeftS  = 0;
   let playTimer = null;
@@ -806,7 +835,7 @@
         // time expired -> end current session and disable Play
         try{ runToken++; }catch(e){}
         try{ showFinalScore(); }catch(e){}
-        try{ setStatus("Time is up. Tap \"Add Time\" to continue."); }catch(e){}
+        try{ setStatus("Time is up. Tap \"More Time\" to continue."); }catch(e){}
         renderPlayMeta();
       }
     }, 1000);
@@ -818,7 +847,7 @@
   ensurePlayTimer();
 
   if(addTimeBtn){
-    addTimeBtn.addEventListener("click", () => { openDonateOverlay(); });
+    addTimeBtn.addEventListener("click", ()=>{ window.openDonateOverlay && window.openDonateOverlay(); });
   }
 
 
@@ -1862,7 +1891,7 @@ restartFromOverlay.addEventListener("click", () => {
   function startGame(){
     if(timeLeftS <= 0){
       renderPlayMeta();
-      setStatus("No time left. Tap \"Add Time\".");
+      setStatus("No time left. Tap \"More Time\".");
       return;
     }
     // Count a Play press (persistent)
@@ -1888,7 +1917,7 @@ restartFromOverlay.addEventListener("click", () => {
 })();
 </script>
 
-<!-- Add Time / PayPal donation overlay -->
+<!-- Add Time / PayPal panel -->
 <div id="donateOverlay" class="overlay hidden" aria-hidden="true">
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="donateTitle">
     <div class="modalHeader">
@@ -1896,9 +1925,7 @@ restartFromOverlay.addEventListener("click", () => {
       <button id="donateCloseBtn" class="modalClose" aria-label="Close">✕</button>
     </div>
     <div class="modalBody">
-      <div class="modalText">
-        Tap <b>PayPal</b> to add <b>5 minutes</b> more of play time for a <b>$1 donation</b>.
-      </div>
+      <div class="modalText">Tap <b>PayPal</b> to add <b>5 minutes</b> more of play time for a <b>$1 donation</b>.</div>
       <button id="paypalDonateBtn" class="primaryBtn">PayPal</button>
     </div>
   </div>
