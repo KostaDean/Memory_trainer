@@ -681,6 +681,9 @@ window.diagPush('BOOTSTRAP OK');
 
   <input id="bgFileInput" type="file" accept="image/*" style="display:none" />
 <script>
+try{ window.diagPush && window.diagPush('MAIN SCRIPT START'); }catch(e){}
+document.addEventListener('DOMContentLoaded', ()=>{ try{ window.diagPush && window.diagPush('MAIN DOM READY'); }catch(e){} });
+
 (() => {
   const game   = document.getElementById("game");
   const arena  = document.getElementById("arena");
