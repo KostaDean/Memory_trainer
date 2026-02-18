@@ -33,6 +33,9 @@
     display:grid;
     grid-template-rows:auto 1fr;
     height:100dvh;
+    --vvh: 100vh;
+    --vb: 0px;
+    --headerH: 0px;
     position:fixed;
     inset:0;
     overflow:hidden;
@@ -83,14 +86,14 @@
     display:grid;
     place-items:center;
     padding:12px;
-    padding-bottom: calc(12px + env(safe-area-inset-bottom));
+    padding-bottom: calc(12px + env(safe-area-inset-bottom) + var(--vb));
   }
 
   #game{
     touch-action: none;
     position:relative;
     width:min(900px, 96vw);
-    height:min(600px, 72vh);
+    height:min(600px, calc(var(--vvh) - var(--headerH) - var(--vb) - 24px));
     background: radial-gradient(900px 650px at 50% 35%, var(--gameA), var(--gameB));
     border:1px solid rgba(255,255,255,0.12);
     border-radius:18px;
@@ -519,91 +522,18 @@
     text-align:center;
   }
 
+
+  #panelBody.hidden{ display:none; }
+
 </style>
 
-
-<script>
-try{ window.diagPush && window.diagPush('SCRIPT START'); }catch(e){}
-
-function renderDiagBanner(extra){
-  try{
-    const msgEl = document.getElementById('diagMsg');
-    if(!msgEl) return;
-    const lines = (window.__diagLines||[]).slice(-8);
-    let txt = lines.join(' | ');
-    if(extra) txt += ' | ' + extra;
-    msgEl.textContent = txt;
-  }catch(e){}
-}
-document.addEventListener('DOMContentLoaded', ()=>{
-  try{
-    renderDiagBanner('DOM READY');
-    // ENABLE PLAY after a short settle delay
-    try{ const pb=document.getElementById('playBtn'); if(pb){ setTimeout(()=>{ pb.disabled=false; window.diagPush('PLAY ENABLED'); }, 800); } }catch(e){}
-
-    setInterval(()=>{ 
-  try{
-    const sb=document.getElementById('startBtn');
-    const status={
-      startDisabled: sb?!!sb.disabled: null,
-      phase: (typeof phase!=='undefined'?phase:undefined),
-      N: (typeof currentN!=='undefined'?currentN:undefined),
-      circles: (typeof circles!=='undefined'?circles.length:undefined)
-    };
-    window.diagPush('STATUS:' + JSON.stringify(status));
-  }catch(e){}
-  renderDiagBanner();
-}, 2500);
-    const dumpBtn = document.getElementById('diagDumpBtn');
-    dumpBtn && dumpBtn.addEventListener('click', ()=>{
-      try{
-        const s = {
-          diag: (window.__diagLines||[]),
-          phase: (typeof phase!=='undefined'?phase:undefined),
-          N: (typeof currentN!=='undefined'?currentN:undefined),
-          circles: (typeof circles!=='undefined'?circles.length:undefined),
-          seqLen: (typeof sequence!=='undefined'?sequence.length:undefined),
-          idx: (typeof recallIndex!=='undefined'?recallIndex:undefined),
-          timeLeft: (typeof remainingSeconds!=='undefined'?remainingSeconds:undefined),
-          plays: (typeof totalPlays!=='undefined'?totalPlays:undefined)
-        };
-        alert('DIAG\n' + JSON.stringify(s, null, 2));
-      }catch(e){ alert('DIAG dump failed: '+e); }
-    });
-  }catch(e){}
-});
-
-
-/* Ultra-early DIAG bootstrap (works even before body exists) */
-window.__diagLines = window.__diagLines || [];
-window.diagPush = function(msg){
-  try{
-    window.__diagLines.push(String(msg));
-    // keep last 30
-    if(window.__diagLines.length > 30) window.__diagLines = window.__diagLines.slice(-30);
-  }catch(e){}
-};
-window.addEventListener('error', function(e){
-  try{ window.diagPush('ERROR: ' + (e && e.message ? e.message : 'script error')); }catch(_){}
-});
-window.addEventListener('unhandledrejection', function(e){
-  try{ window.diagPush('PROMISE: ' + (e && e.reason ? e.reason : 'unhandled')); }catch(_){}
-});
-window.diagPush('BOOTSTRAP OK');
-</script>
 </head>
 
-
 <body>
-<div id="diagBanner" style="position:fixed;top:0;left:0;right:0;z-index:999999;background:#b00020;color:#fff;padding:8px 10px;font:12px/1.35 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
-  <b>DIAG BUILD</b> <span id="diagMsg">Loading…</span>
-  <button id="diagDumpBtn" style="float:right;background:#111;color:#fff;border:0;border-radius:10px;padding:4px 10px;font-weight:700;">Dump</button>
-</div>
-<div style="height:36px"></div>
-
 <header>
   <div id="controls">
     <button id="startBtn" class="primary">Play</button>
+    <button id="panelBtn" title="Show/hide the control panel">Panel</button>
     
     <div id="missBar" class="missBar" title="Mistakes allowed (resets each round)">
       <span class="missDot"></span><span class="missDot"></span><span class="missDot"></span>
@@ -613,6 +543,7 @@ window.diagPush('BOOTSTRAP OK');
     
 
     <div id="level"><span class="pill">N = <b id="nVal">2</b></span><span class="pill" style="margin-left:10px;">Words: <b id="wordCount">0</b></span><span class="pill" style="margin-left:10px;">Plays: <b id="playCount">0</b></span><span class="pill" style="margin-left:10px;">Time: <b id="timeLeft">10:00</b></span><button id="addTimeBtn" title="Add more play time" style="margin-left:8px;">More Time</button></div>
+<div id="panelBody">
 <div class="bg-palette-wrap" aria-label="Background">
       <span class="bg-label">Background</span>
       <div id="bgPalette" class="bg-palette" role="listbox" aria-label="Background colors"></div>
@@ -648,6 +579,7 @@ window.diagPush('BOOTSTRAP OK');
     <div id="status">Press Play once. Then it runs continuously.</div>
     <button id="closeBtn" title="Close">✕</button>
   </div>
+</div>
 </header>
 
 <div id="playPanel">
@@ -693,34 +625,54 @@ window.diagPush('BOOTSTRAP OK');
 
   <input id="bgFileInput" type="file" accept="image/*" style="display:none" />
 <script>
-try{ window.diagPush && window.diagPush('MAIN SCRIPT START'); }catch(e){}
-function __dlog(x){ try{ window.diagPush && window.diagPush(x); }catch(e){} }
-document.addEventListener('DOMContentLoaded', ()=>{ try{ window.diagPush && window.diagPush('MAIN DOM READY');
-    // WIRE BUTTON PROBES
+
+  // === iOS Safari bottom bar mitigation (visualViewport) ===
+  function __updateViewportVars(){
     try{
-      document.addEventListener('pointerdown', (e)=>{
-        const t=e.target;
-        const id=(t && t.id) ? t.id : '';
-        const tag=(t && t.tagName) ? t.tagName.toLowerCase() : '';
-        window.diagPush('POINTERDOWN:any ' + (id?('#'+id+' '):'') + tag);
-      }, true);
+      const vv = window.visualViewport;
+      const vvh = vv ? vv.height : window.innerHeight;
+      const vb = vv ? Math.max(0, window.innerHeight - (vv.height + vv.offsetTop)) : 0;
+      document.documentElement.style.setProperty('--vvh', vvh + 'px');
+      document.documentElement.style.setProperty('--vb', vb + 'px');
+      const header = document.querySelector('header');
+      if(header){
+        const hh = header.getBoundingClientRect().height;
+        document.documentElement.style.setProperty('--headerH', hh + 'px');
+      }
     }catch(e){}
+  }
+  window.addEventListener('resize', __updateViewportVars, {passive:true});
+  if(window.visualViewport){
+    window.visualViewport.addEventListener('resize', __updateViewportVars, {passive:true});
+    window.visualViewport.addEventListener('scroll', __updateViewportVars, {passive:true});
+  }
+  document.addEventListener('DOMContentLoaded', __updateViewportVars);
 
-    try{
-      const ids=['startBtn','addTimeBtn','endBtn','uploadBtn','recBtn','stopRecBtn','clearRecBtn','markRecBtn','paceMinus','pacePlus','sizeMinus','sizePlus','closeBtn','restartFromOverlay','closeFromOverlay'];
-      ids.forEach(id=>{
-        const el=document.getElementById(id);
-        if(!el) return;
-        el.addEventListener('click', ()=>__dlog('CLICK:'+id), {capture:true});
-      });
-      // bg swatches
-      const pal=document.getElementById('bgPalette');
-      const arena=document.getElementById('arena');
-      if(arena){ arena.addEventListener('pointerdown', ()=>__dlog('CLICK:arena'), {capture:true}); arena.addEventListener('click', ()=>__dlog('CLICK:arena(click)'), {capture:true}); }
-      if(pal){ pal.addEventListener('click', (e)=>{ const b=e.target && e.target.closest && e.target.closest('.bg-swatch'); if(b){ __dlog('CLICK:bg:'+ (b.dataset && b.dataset.key ? b.dataset.key:'?')); } }, true); }
-    }catch(e){ __dlog('probe-wire-failed:'+e); }
- }catch(e){} });
+  // Panel toggle (manual + auto hide while playing)
+  const panelBtn = document.getElementById('panelBtn');
+  const panelBody = document.getElementById('panelBody');
+  let panelHidden = false;
 
+  function setPanelHidden(h){
+    panelHidden = !!h;
+    if(panelBody) panelBody.classList.toggle('hidden', panelHidden);
+    if(panelBtn) panelBtn.textContent = panelHidden ? 'Panel ▾' : 'Panel';
+    __updateViewportVars();
+  }
+  if(panelBtn){
+    panelBtn.addEventListener('click', ()=> setPanelHidden(!panelHidden));
+  }
+
+  // Call this from game phases when you want auto-hide
+  function __autoPanelForPhase(phaseName){
+    // Hide panel during SHOW + RECALL. Show panel when idle/end.
+    if(!panelBody) return;
+    if(phaseName === 'show' || phaseName === 'recall'){
+      setPanelHidden(true);
+    }else if(phaseName === 'idle' || phaseName === 'ended'){
+      setPanelHidden(false);
+    }
+  }
 (() => {
   const game   = document.getElementById("game");
   const arena  = document.getElementById("arena");
