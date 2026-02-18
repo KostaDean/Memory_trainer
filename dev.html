@@ -525,6 +525,52 @@
 
   #panelBody.hidden{ display:none; }
 
+
+/* Add Time / PayPal donation overlay */
+.overlay{
+  position:fixed; inset:0;
+  display:flex; align-items:flex-start; justify-content:center;
+  padding: 70px 16px 16px;
+  background: rgba(0,0,0,0.45);
+  z-index: 99999;
+}
+.overlay.hidden{ display:none; }
+.modal{
+  width:min(520px, 96vw);
+  border-radius: 18px;
+  background: rgba(30,33,42,0.92);
+  border: 1px solid rgba(255,255,255,0.14);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: #e9ecf3;
+  box-shadow: 0 18px 60px rgba(0,0,0,0.45);
+}
+.modalHeader{
+  display:flex; align-items:center; justify-content:space-between;
+  padding: 14px 14px 10px 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.10);
+}
+.modalTitle{ font-weight: 700; letter-spacing: .2px; }
+.modalClose{
+  border:0; background: rgba(255,255,255,0.10);
+  color:#fff; border-radius: 12px;
+  width: 38px; height: 32px;
+  font-size: 16px;
+}
+.modalBody{ padding: 14px 16px 16px; }
+.modalText{ font-size: 15px; line-height: 1.35; margin-bottom: 12px; }
+.primaryBtn{
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 14px;
+  background: rgba(255,255,255,0.12);
+  color: #fff;
+  font-weight: 800;
+  letter-spacing: .2px;
+}
+.primaryBtn:active{ transform: scale(0.99); }
+
 </style>
 
 </head>
@@ -542,7 +588,7 @@
 
     
 
-    <div id="level"><span class="pill">N = <b id="nVal">2</b></span><span class="pill" style="margin-left:10px;">Words: <b id="wordCount">0</b></span><span class="pill" style="margin-left:10px;">Plays: <b id="playCount">0</b></span><span class="pill" style="margin-left:10px;">Time: <b id="timeLeft">10:00</b></span><button id="addTimeBtn" title="Add more play time" style="margin-left:8px;">More Time</button></div>
+    <div id="level"><span class="pill">N = <b id="nVal">2</b></span><span class="pill" style="margin-left:10px;">Words: <b id="wordCount">0</b></span><span class="pill" style="margin-left:10px;">Plays: <b id="playCount">0</b></span><span class="pill" style="margin-left:10px;">Time: <b id="timeLeft">10:00</b></span><button id="addTimeBtn" title="Add more play time" style="margin-left:8px;">Add Time</button></div>
 <div id="panelBody">
 <div class="bg-palette-wrap" aria-label="Background">
       <span class="bg-label">Background</span>
@@ -685,7 +731,7 @@
   const STORAGE_PLAY = "smt_total_plays";
   const STORAGE_TIME = "smt_time_left_seconds";
   const DEFAULT_MINUTES = 10; // initial allowed minutes
-  const ADD_MINUTES = 5;      // per "More Time" press
+  const ADD_MINUTES = 5;      // per "Add Time" press
   let totalPlays = 0;
   let timeLeftS  = 0;
   let playTimer = null;
@@ -722,7 +768,7 @@
         // time expired -> end current session and disable Play
         try{ runToken++; }catch(e){}
         try{ showFinalScore(); }catch(e){}
-        try{ setStatus("Time is up. Tap \"More Time\" to continue."); }catch(e){}
+        try{ setStatus("Time is up. Tap \"Add Time\" to continue."); }catch(e){}
         renderPlayMeta();
       }
     }, 1000);
@@ -734,12 +780,7 @@
   ensurePlayTimer();
 
   if(addTimeBtn){
-    addTimeBtn.addEventListener("click", ()=>{
-      timeLeftS += (ADD_MINUTES*60);
-      savePlayMeta();
-      renderPlayMeta();
-      setStatus(`Added ${ADD_MINUTES} minutes.`);
-    });
+    addTimeBtn.addEventListener("click", () => { openDonateOverlay(); });
   }
 
 
@@ -1783,7 +1824,7 @@ restartFromOverlay.addEventListener("click", () => {
   function startGame(){
     if(timeLeftS <= 0){
       renderPlayMeta();
-      setStatus("No time left. Tap \"More Time\".");
+      setStatus("No time left. Tap \"Add Time\".");
       return;
     }
     // Count a Play press (persistent)
@@ -1808,5 +1849,22 @@ restartFromOverlay.addEventListener("click", () => {
 
 })();
 </script>
+
+<!-- Add Time / PayPal donation overlay -->
+<div id="donateOverlay" class="overlay hidden" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="donateTitle">
+    <div class="modalHeader">
+      <div id="donateTitle" class="modalTitle">Add Play Time</div>
+      <button id="donateCloseBtn" class="modalClose" aria-label="Close">✕</button>
+    </div>
+    <div class="modalBody">
+      <div class="modalText">
+        Tap <b>PayPal</b> to add <b>5 minutes</b> more of play time for a <b>$1 donation</b>.
+      </div>
+      <button id="paypalDonateBtn" class="primaryBtn">PayPal</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
