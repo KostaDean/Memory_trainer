@@ -744,12 +744,11 @@ body.bestFlash::before{
 
   function loadPlayMeta(){
     try{ totalPlays = Number(localStorage.getItem(STORAGE_PLAY) || 0) || 0; }catch(e){ totalPlays = 0; }
-    try{ timeLeftS = Number(localStorage.getItem(STORAGE_TIME) || (DEFAULT_MINUTES*60)) || (DEFAULT_MINUTES*60); }catch(e){ timeLeftS = DEFAULT_MINUTES*60; }
+    timeLeftS = DEFAULT_MINUTES*60; // reset every page load
     try{ bestN = Number(localStorage.getItem(STORAGE_BEST) || 2) || 2; bestN = Math.max(2, Math.floor(bestN)); }catch(e){ bestN = 2; }
   }
   function savePlayMeta(){
     try{ localStorage.setItem(STORAGE_PLAY, String(totalPlays)); }catch(e){}
-    try{ localStorage.setItem(STORAGE_TIME, String(timeLeftS)); }catch(e){}
     try{ localStorage.setItem(STORAGE_BEST, String(bestN)); }catch(e){}
   }
   
