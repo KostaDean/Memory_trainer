@@ -556,6 +556,24 @@
       white-space: nowrap;
     }
 
+
+/* New Best celebration flash */
+body.bestFlash::before{
+  content:"";
+  position:fixed;
+  inset:0;
+  pointer-events:none;
+  background: radial-gradient(circle at 50% 35%, rgba(255,215,0,0.45), rgba(255,215,0,0.0) 60%),
+              rgba(255,215,0,0.10);
+  mix-blend-mode: screen;
+  animation: bestFlashAnim 0.9s ease-out forwards;
+  z-index: 9999;
+}
+@keyframes bestFlashAnim{
+  0%{ opacity:0; }
+  10%{ opacity:1; }
+  100%{ opacity:0; }
+}
 </style>
 
 </head>
@@ -575,7 +593,7 @@
 
     
 
-    <div id="level"><span class="pill">N = <b id="nVal">2</b></span><span class="pill">Best: <b id="bestVal">2</b></span><span class="pill" style="margin-left:10px;">Words: <b id="wordCount">0</b></span><span class="pill" style="margin-left:10px;">Plays: <b id="playCount">0</b></span><span class="pill" style="margin-left:10px;">Time: <b id="timeLeft">10:00</b></span><button id="addTimeBtn" title="Add more play time" style="margin-left:8px;">More Time</button></div>
+    <div id="level"><span class="pill">N = <b id="nVal">2</b></span><span class="pill">Best: <b id="bestVal">2</b></span><span class="pill" style="margin-left:10px;">Words: <b id="wordCount">0</b></span><span class="pill" style="margin-left:10px;">Plays: <b id="playCount">0</b></span><span class="pill" style="margin-left:10px;">Time: <b id="timeLeft">10:00</b></span><button id="addTimeBtn" title="Add more play time" style="margin-left:8px;">Add Time</button></div>
 <div id="panelBody">
 <div class="bg-palette-wrap" aria-label="Background">
       <span class="bg-label">Background</span>
@@ -718,7 +736,7 @@
   const STORAGE_PLAY = "smt_total_plays";
   const STORAGE_TIME = "smt_time_left_seconds";
   const DEFAULT_MINUTES = 10; // initial allowed minutes
-  const ADD_MINUTES = 5;      // per "More Time" press
+  const ADD_MINUTES = 5;      // per "Add Time" press
   let totalPlays = 0;
   let timeLeftS  = 0;
   let bestN = 2;
@@ -734,7 +752,47 @@
     try{ localStorage.setItem(STORAGE_TIME, String(timeLeftS)); }catch(e){}
     try{ localStorage.setItem(STORAGE_BEST, String(bestN)); }catch(e){}
   }
-  function fmtTime(s){
+  
+  // --- Best N tracking + reward ---
+  function maybeUpdateBest(newN){
+    try{
+      const n = parseInt(newN)||0;
+      if(n>bestN){
+        bestN = n;
+        try{ localStorage.setItem(STORAGE_BEST, String(bestN)); }catch(e){}
+        // reward: +10 minutes playtime
+        timeLeftS = Math.max(0, (parseInt(timeLeftS)||0)) + 10*60;
+        savePlayMeta();
+        renderPlayMeta();
+        celebrateNewBest();
+      }
+    }catch(e){}
+  }
+
+  function celebrateNewBest(){
+    // quick gold flash + simple "trumpet" motif using WebAudio
+    try{
+      document.body.classList.add('bestFlash');
+      setTimeout(()=>document.body.classList.remove('bestFlash'), 900);
+    }catch(e){}
+    try{
+      // (uses existing playTone/ensureAudio)
+      const seq = [
+        [523.25, 0.10], // C5
+        [659.25, 0.10], // E5
+        [783.99, 0.14], // G5
+        [1046.5, 0.22], // C6
+        [783.99, 0.12], // G5
+        [1046.5, 0.28], // C6
+      ];
+      let t=0;
+      for(const [f,d] of seq){
+        setTimeout(()=>{ try{ playTone(f,d,0.35);}catch(_e){} }, t);
+        t += Math.max(40, d*1000);
+      }
+    }catch(e){}
+  }
+function fmtTime(s){
     s = Math.max(0, Math.floor(s||0));
     const m = Math.floor(s/60);
     const r = s%60;
@@ -811,7 +869,7 @@
         // time expired -> end current session and disable Play
         try{ runToken++; }catch(e){}
         try{ showFinalScore(); }catch(e){}
-        try{ setStatus("Time is up. Tap \"More Time\" to continue."); }catch(e){}
+        try{ setStatus("Time is up. Tap \"Add Time\" to continue."); }catch(e){}
         renderPlayMeta();
       }
     }, 1000);
@@ -1561,6 +1619,7 @@ game.classList.add("goldGlow");
 
   // ---------- Game state ----------
   let N = 2;
+  let soundOn = true; // sound effects enabled
   let phase = "idle";
   let recallInputLocked = false; // idle | showing | recall | transition | ended
   let expectedIndex = 0;
@@ -1815,6 +1874,7 @@ game.classList.add("goldGlow");
   async function onSuccess() {
     phase = "transition";
     maxNThisSession = Math.max(maxNThisSession, N);
+        maybeUpdateBest(maxNThisSession);
     setStatus(`✅ Success! Next round…`);
     await goldTransition(runToken);
     N = clamp(N + 1, MIN_N, MAX_N);
@@ -1826,6 +1886,7 @@ game.classList.add("goldGlow");
   async function onFailure() {
     phase = "transition";
     maxNThisSession = Math.max(maxNThisSession, N);
+        maybeUpdateBest(maxNThisSession);
     setStatus(`❌ Wrong order. Adjusting…`);
     await goldTransition(runToken);
     N = clamp(N - 1, MIN_N, MAX_N);
@@ -1875,7 +1936,7 @@ restartFromOverlay.addEventListener("click", () => {
   function startGame(){
     if(timeLeftS <= 0){
       renderPlayMeta();
-      setStatus("No time left. Tap \"More Time\".");
+      setStatus("No time left. Tap \"Add Time\".");
       return;
     }
     // Count a Play press (persistent)
