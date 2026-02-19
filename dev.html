@@ -526,52 +526,43 @@
   #panelBody.hidden{ display:none; }
 
 
-/* Record celebration */
-.recordFlash{
-  position:fixed; inset:0;
-  display:none;
-  align-items:center; justify-content:center;
-  z-index: 999999;
-  pointer-events:none;
-}
-.recordFlash.show{ display:flex; }
-.recordFlashInner{
-  padding: 18px 22px;
-  border-radius: 18px;
-  background: rgba(255, 215, 0, 0.92);
-  color: #2a1a00;
-  font-weight: 900;
-  font-size: 22px;
-  letter-spacing: .3px;
-  box-shadow: 0 18px 60px rgba(0,0,0,0.35);
-  transform: scale(0.98);
-}
-@keyframes recordFlashBg{
-  0%   { background: rgba(255, 215, 0, 0.00); }
-  15%  { background: rgba(255, 215, 0, 0.60); }
-  30%  { background: rgba(255, 215, 0, 0.10); }
-  45%  { background: rgba(255, 215, 0, 0.55); }
-  60%  { background: rgba(255, 215, 0, 0.08); }
-  75%  { background: rgba(255, 215, 0, 0.50); }
-  100% { background: rgba(255, 215, 0, 0.00); }
-}
-.recordFlash.show{
-  animation: recordFlashBg 900ms ease-out;
-}
-@keyframes recordPop{
-  0%{ transform: scale(0.80); opacity: 0; }
-  15%{ transform: scale(1.08); opacity: 1; }
-  100%{ transform: scale(1.00); opacity: 1; }
-}
-.recordFlash.show .recordFlashInner{
-  animation: recordPop 240ms ease-out;
-}
+    /* Record celebration flash */
+    .record-flash {
+      animation: recordFlash 1.2s ease-out 1;
+    }
+    @keyframes recordFlash {
+      0%   { filter: brightness(1); }
+      10%  { filter: brightness(1.8) saturate(1.6); }
+      35%  { filter: brightness(1.2) saturate(1.2); }
+      100% { filter: brightness(1) saturate(1); }
+    }
+    #recordToast {
+      position: fixed;
+      left: 50%;
+      top: max(env(safe-area-inset-top), 10px);
+      transform: translateX(-50%);
+      background: rgba(255, 215, 0, 0.14);
+      border: 1px solid rgba(255, 215, 0, 0.35);
+      color: rgba(255,255,255,0.95);
+      padding: 10px 14px;
+      border-radius: 14px;
+      font-size: 14px;
+      z-index: 9999;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      display: none;
+      pointer-events: none;
+      text-align: center;
+      white-space: nowrap;
+    }
 
 </style>
 
 </head>
 
 <body>
+  <div id="recordToast">New record! +10 minutes 🎉</div>
+
 <header>
   <div id="controls">
     <button id="startBtn" class="primary">Play</button>
@@ -584,7 +575,7 @@
 
     
 
-    <div id="level"><span class="pill">N = <b id="nVal">2</b></span><span class="pill" style="margin-left:10px;">Best: <b id="bestNVal">2</b></span><span class="pill" style="margin-left:10px;">Words: <b id="wordCount">0</b></span><span class="pill" style="margin-left:10px;">Plays: <b id="playCount">0</b></span><span class="pill" style="margin-left:10px;">Time: <b id="timeLeft">10:00</b></span><button id="addTimeBtn" title="Add more play time" style="margin-left:8px;">Add Time</button></div>
+    <div id="level"><span class="pill">N = <b id="nVal">2</b></span><span class="pill">Best: <b id="bestVal">2</b></span><span class="pill" style="margin-left:10px;">Words: <b id="wordCount">0</b></span><span class="pill" style="margin-left:10px;">Plays: <b id="playCount">0</b></span><span class="pill" style="margin-left:10px;">Time: <b id="timeLeft">10:00</b></span><button id="addTimeBtn" title="Add more play time" style="margin-left:8px;">More Time</button></div>
 <div id="panelBody">
 <div class="bg-palette-wrap" aria-label="Background">
       <span class="bg-label">Background</span>
@@ -636,7 +627,6 @@
 
     <div id="overlay" role="dialog" aria-modal="true">
       <div id="panel">
-        <div id="finalScoreContent">
         <h2>Final Score</h2>
 <div id="score">N = 2</div>
         <p>
@@ -659,27 +649,6 @@
             Donate via PayPal
           </a>
         </div>
-        </div><!-- /#finalScoreContent -->
-
-        <div id="addTimeContent" style="display:none;">
-          <h2 style="margin-top:0;">Add Play Time</h2>
-          <div style="margin:10px 0 14px 0; line-height:1.35;">
-            Tap <b>PayPal</b> to donate <b>$1</b>. After you complete the donation, come back and tap <b>I donated — add 5 min</b>.
-          </div>
-          <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-            <a id="addTimePayPalLink" href="https://www.paypal.com/paypalme/ConstantinosRagazas/1" target="_blank" rel="noopener"
-               style="display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:10px 12px; border-radius:12px;
-                      border:1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.10); color:var(--text);
-                      text-decoration:none; font-weight:800;">
-              PayPal ($1 → +5 min)
-            </a>
-            
-            <button id="addTimeConfirmBtn" class="btn small" style="font-weight:800;">I donated — add 5 min</button>
-
-            <button id="addTimeCloseBtn" class="btn small">Close</button>
-          </div>
-        </div>
-
       </div>
     </div>
 
@@ -752,58 +721,18 @@
   const ADD_MINUTES = 5;      // per "More Time" press
   let totalPlays = 0;
   let timeLeftS  = 0;
-  let playTimer = null;
-
-  // --- Historical Best N + Reward ---
-  const STORAGE_BEST_N = "smt_best_n";
-  const bestNEl = document.getElementById("bestNVal");
   let bestN = 2;
-  let recordRewardedThisSession = false;
-
-  function loadBestN(){
-    try{ bestN = Number(localStorage.getItem(STORAGE_BEST_N) || 2) || 2; }catch(e){ bestN = 2; }
-  }
-  function saveBestN(){
-    try{ localStorage.setItem(STORAGE_BEST_N, String(bestN)); }catch(e){}
-  }
-  function renderBestN(){
-    if(bestNEl) bestNEl.textContent = String(bestN);
-  }
-
-  // Reward: +10 minutes when a new historical best is reached
-  const RECORD_REWARD_SECONDS = 10 * 60;
-
-  function checkAndRewardRecord(reachedN){
-    const prevBest = bestN;
-    if(reachedN > bestN){
-      bestN = reachedN;
-      saveBestN();
-      renderBestN();
-
-      // Reward time only once per session, but ALWAYS update Best N.
-      if(!recordRewardedThisSession){
-        timeLeftS = Math.max(0, (timeLeftS|0) + RECORD_REWARD_SECONDS);
-        savePlayMeta();
-        renderPlayMeta();
-
-        recordRewardedThisSession = true;
-        try{ setStatus(`🎉 New record! Best N = ${bestN}. Reward: +10 minutes.`); }catch(e){}
-        celebrateRecord();
-      }else{
-        try{ setStatus(`🏆 New record! Best N = ${bestN}.`); }catch(e){}
-      }
-    }
-  }
-  }
-
+  let playTimer = null;
 
   function loadPlayMeta(){
     try{ totalPlays = Number(localStorage.getItem(STORAGE_PLAY) || 0) || 0; }catch(e){ totalPlays = 0; }
     try{ timeLeftS = Number(localStorage.getItem(STORAGE_TIME) || (DEFAULT_MINUTES*60)) || (DEFAULT_MINUTES*60); }catch(e){ timeLeftS = DEFAULT_MINUTES*60; }
+    try{ bestN = Number(localStorage.getItem(STORAGE_BEST) || 2) || 2; bestN = Math.max(2, Math.floor(bestN)); }catch(e){ bestN = 2; }
   }
   function savePlayMeta(){
     try{ localStorage.setItem(STORAGE_PLAY, String(totalPlays)); }catch(e){}
     try{ localStorage.setItem(STORAGE_TIME, String(timeLeftS)); }catch(e){}
+    try{ localStorage.setItem(STORAGE_BEST, String(bestN)); }catch(e){}
   }
   function fmtTime(s){
     s = Math.max(0, Math.floor(s||0));
@@ -816,6 +745,59 @@
     if(timeLeftEl) timeLeftEl.textContent = fmtTime(timeLeftS);
     if(startBtn) startBtn.disabled = (timeLeftS <= 0);
   }
+  function showRecordToast(){
+    const t = document.getElementById("recordToast");
+    if(!t) return;
+    t.style.display = "block";
+    clearTimeout(showRecordToast._to);
+    showRecordToast._to = setTimeout(()=>{ t.style.display="none"; }, 1600);
+  }
+
+  function flashRecord(){
+    document.body.classList.remove("record-flash");
+    // force reflow so animation restarts
+    void document.body.offsetWidth;
+    document.body.classList.add("record-flash");
+  }
+
+  // Simple trumpet-like fanfare (no external audio file)
+  function playFanfare(){
+    try{
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if(!AC) return;
+      const ctx = playFanfare._ctx || (playFanfare._ctx = new AC());
+      const now = ctx.currentTime;
+
+      const notes = [523.25, 659.25, 783.99, 1046.5]; // C5 E5 G5 C6
+      notes.forEach((freq, i)=>{
+        const t0 = now + i*0.12;
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.type = "sawtooth";
+        o.frequency.setValueAtTime(freq, t0);
+
+        g.gain.setValueAtTime(0.0001, t0);
+        g.gain.exponentialRampToValueAtTime(0.20, t0+0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, t0+0.18);
+
+        // mild filter to soften
+        const f = ctx.createBiquadFilter();
+        f.type = "lowpass";
+        f.frequency.setValueAtTime(2500, t0);
+
+        o.connect(f); f.connect(g); g.connect(ctx.destination);
+        o.start(t0);
+        o.stop(t0+0.22);
+      });
+    }catch(e){}
+  }
+
+  function celebrateNewRecord(){
+    flashRecord();
+    showRecordToast();
+    if(soundOn) playFanfare();
+  }
+
   function ensurePlayTimer(){
     if(playTimer) return;
     playTimer = setInterval(()=>{
@@ -829,7 +811,7 @@
         // time expired -> end current session and disable Play
         try{ runToken++; }catch(e){}
         try{ showFinalScore(); }catch(e){}
-        try{ setStatus("Time is up. Tap \"Add Time\" to continue."); }catch(e){}
+        try{ setStatus("Time is up. Tap \"More Time\" to continue."); }catch(e){}
         renderPlayMeta();
       }
     }, 1000);
@@ -837,13 +819,20 @@
 
   // init play meta
   loadPlayMeta();
-  loadBestN();
-  renderBestN();
   renderPlayMeta();
   ensurePlayTimer();
 
-  /* addTimeBtn handler replaced below */
-// ---- Forgiving misses (kid-friendly) ----
+  if(addTimeBtn){
+    addTimeBtn.addEventListener("click", ()=>{
+      timeLeftS += (ADD_MINUTES*60);
+      savePlayMeta();
+      renderPlayMeta();
+      setStatus(`Added ${ADD_MINUTES} minutes.`);
+    });
+  }
+
+
+  // ---- Forgiving misses (kid-friendly) ----
   const MISS_LIMIT = 3;     // per round
   let missesUsed = 0;
   const missBar = document.getElementById("missBar");
@@ -1041,61 +1030,6 @@ const endBtn = document.getElementById("endBtn");
     return audioCtx;
   }
 
-  function playTrumpetFanfare(){
-    try{
-      const ctx = ensureAudio();
-      const now = ctx.currentTime;
-
-      // Brass-ish: sawtooth + lowpass + envelope
-      function note(freq, t, dur){
-        const o = ctx.createOscillator();
-        const g = ctx.createGain();
-        const f = ctx.createBiquadFilter();
-        o.type = "sawtooth";
-        o.frequency.setValueAtTime(freq, t);
-        f.type = "lowpass";
-        f.frequency.setValueAtTime(1600, t);
-        f.Q.setValueAtTime(0.7, t);
-
-        // Envelope
-        g.gain.setValueAtTime(0.0001, t);
-        g.gain.exponentialRampToValueAtTime(0.18, t + 0.02);
-        g.gain.exponentialRampToValueAtTime(0.06, t + 0.12);
-        g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-
-        o.connect(f); f.connect(g); g.connect(ctx.destination);
-        o.start(t);
-        o.stop(t + dur + 0.03);
-      }
-
-      // Simple triumph motif (C–E–G–C)
-      const seq = [
-        [523.25, 0.00, 0.20], // C5
-        [659.25, 0.22, 0.18], // E5
-        [783.99, 0.42, 0.22], // G5
-        [1046.50,0.66, 0.32], // C6
-      ];
-      seq.forEach(([f, dt, d]) => note(f, now + dt, d));
-    }catch(e){}
-  }
-
-  function flashRecord(){
-    const el = document.getElementById("recordFlash");
-    if(!el) return;
-    el.classList.add("show");
-    el.setAttribute("aria-hidden","false");
-    // remove after animation
-    setTimeout(()=>{
-      el.classList.remove("show");
-      el.setAttribute("aria-hidden","true");
-    }, 950);
-  }
-
-  function celebrateRecord(){
-    flashRecord();
-    playTrumpetFanfare();
-  }
-
   // iOS audio unlock (first user gesture)
   window.addEventListener("touchstart", () => { try{ ensureAudio(); }catch(e){} }, { once:true, passive:true });
 
@@ -1136,7 +1070,10 @@ const endBtn = document.getElementById("endBtn");
   const dist  = (a,b) => Math.hypot(a.cx-b.cx, a.cy-b.cy);
 
   function setStatus(s){ statusEl.textContent = s; }
-  function setLevel(){ const nEl=document.getElementById("nVal"); if(nEl) nEl.textContent = String(N); }
+  function setLevel(){
+    const nEl=document.getElementById("nVal"); if(nEl) nEl.textContent = String(N);
+    const bEl=document.getElementById("bestVal"); if(bEl) bEl.textContent = String(bestN);
+  }
 
   // ---------- iOS / anti-jump ----------
   function lockViewport(){
@@ -1437,94 +1374,6 @@ const endBtn = document.getElementById("endBtn");
       updateWordCountUI();
 }
 
-
-  // --- Add Time donation overlay (uses the same overlay as Final Score) ---
-  const ADD_TIME_SECONDS = 5 * 60;
-  const PAYPAL_ADD_TIME_URL = "https://www.paypal.com/paypalme/ConstantinosRagazas/1";
-
-  function addPlayTime(seconds){
-    timeLeftS = Math.max(0, (timeLeftS|0) + (seconds|0));
-    savePlayMeta();
-    renderPlayMeta();
-  }
-
-  function openAddTimeOverlay(){
-    const overlay = document.getElementById("overlay");
-    const finalBox = document.getElementById("finalScoreContent");
-    const addBox   = document.getElementById("addTimeContent");
-    if(!overlay || !finalBox || !addBox) return;
-    // show overlay
-    overlay.classList.add("show");
-    overlay.setAttribute("aria-hidden","false");
-    // swap contents
-    finalBox.style.display = "none";
-    addBox.style.display = "block";
-  }
-
-  function closeAddTimeOverlay(){
-    const overlay = document.getElementById("overlay");
-    const finalBox = document.getElementById("finalScoreContent");
-    const addBox   = document.getElementById("addTimeContent");
-    if(addBox) addBox.style.display = "none";
-    if(finalBox) finalBox.style.display = "block";
-    if(overlay){
-      overlay.classList.remove("show");
-      overlay.setAttribute("aria-hidden","true");
-    }
-  }
-
-  // wire Add Time button + overlay buttons
-  (function(){
-    const addTimeBtn = document.getElementById("addTimeBtn");
-    const addClose   = document.getElementById("addTimeCloseBtn");
-    const addPayLink = document.getElementById("addTimePayPalLink");
-    if(addTimeBtn){
-      addTimeBtn.addEventListener("click", (e)=>{
-        e.preventDefault();
-        openAddTimeOverlay();
-      }, {passive:false});
-    }
-    if(addClose){
-      addClose.addEventListener("click", (e)=>{
-        e.preventDefault();
-        closeAddTimeOverlay();
-      }, {passive:false});
-    }
-    if(addPayLink){
-      addPayLink.addEventListener("click", (e)=>{
-        // Static HTML cannot confirm whether the PayPal donation completed.
-        // We set a "pending donation" flag; user confirms after donating.
-        window.__pendingDonation = true;
-        window.__pendingDonationAt = Date.now();
-        // Do NOT preventDefault—let the link navigate normally.
-      });
-    }
-
-    const addConfirm = document.getElementById("addTimeConfirmBtn");
-    if(addConfirm){
-      addConfirm.addEventListener("click", (e)=>{
-        e.preventDefault();
-        const pending = !!window.__pendingDonation;
-        const ageMs = (typeof window.__pendingDonationAt === "number") ? (Date.now() - window.__pendingDonationAt) : Infinity;
-        if(!pending){
-          try{ setStatus("Tap PayPal to donate, then come back and tap “I donated — add 5 min”."); }catch(_){}
-          return;
-        }
-        if(ageMs > 30*60*1000){
-          window.__pendingDonation = false;
-          window.__pendingDonationAt = 0;
-          try{ setStatus("PayPal tap expired. Please tap PayPal again, then confirm."); }catch(_){}
-          return;
-        }
-        window.__pendingDonation = false;
-        window.__pendingDonationAt = 0;
-        addPlayTime(ADD_TIME_SECONDS);
-        try{ ensurePlayTimer(); }catch(_){}
-        closeAddTimeOverlay();
-        try{ setStatus("+5 minutes added. Thank you!"); }catch(_){}
-      }, {passive:false});
-    }
-})();
   const WORD_PAD_BEFORE_MS = 90;
   const WORD_PAD_AFTER_MS  = 140;
 
@@ -1966,7 +1815,6 @@ game.classList.add("goldGlow");
   async function onSuccess() {
     phase = "transition";
     maxNThisSession = Math.max(maxNThisSession, N);
-    checkAndRewardRecord(maxNThisSession);
     setStatus(`✅ Success! Next round…`);
     await goldTransition(runToken);
     N = clamp(N + 1, MIN_N, MAX_N);
@@ -1987,15 +1835,7 @@ game.classList.add("goldGlow");
   }
 
   function showFinalScore(){
-    try{
-      const finalBox=document.getElementById("finalScoreContent");
-      const addBox=document.getElementById("addTimeContent");
-      if(addBox) addBox.style.display="none";
-      if(finalBox) finalBox.style.display="block";
-    }catch(e){}
-
     phase = "ended";
-    checkAndRewardRecord(maxNThisSession);
     clearBoard();
     scoreEl.textContent = `N = ${maxNThisSession}`;
     overlay.classList.add("show");
@@ -2060,11 +1900,5 @@ restartFromOverlay.addEventListener("click", () => {
 
 })();
 </script>
-
-<!-- Record celebration flash -->
-<div id="recordFlash" class="recordFlash" aria-hidden="true">
-  <div class="recordFlashInner">🏆 New Record!</div>
-</div>
-
 </body>
 </html>
