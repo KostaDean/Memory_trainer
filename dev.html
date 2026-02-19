@@ -525,6 +525,48 @@
 
   #panelBody.hidden{ display:none; }
 
+
+/* Record celebration */
+.recordFlash{
+  position:fixed; inset:0;
+  display:none;
+  align-items:center; justify-content:center;
+  z-index: 999999;
+  pointer-events:none;
+}
+.recordFlash.show{ display:flex; }
+.recordFlashInner{
+  padding: 18px 22px;
+  border-radius: 18px;
+  background: rgba(255, 215, 0, 0.92);
+  color: #2a1a00;
+  font-weight: 900;
+  font-size: 22px;
+  letter-spacing: .3px;
+  box-shadow: 0 18px 60px rgba(0,0,0,0.35);
+  transform: scale(0.98);
+}
+@keyframes recordFlashBg{
+  0%   { background: rgba(255, 215, 0, 0.00); }
+  15%  { background: rgba(255, 215, 0, 0.60); }
+  30%  { background: rgba(255, 215, 0, 0.10); }
+  45%  { background: rgba(255, 215, 0, 0.55); }
+  60%  { background: rgba(255, 215, 0, 0.08); }
+  75%  { background: rgba(255, 215, 0, 0.50); }
+  100% { background: rgba(255, 215, 0, 0.00); }
+}
+.recordFlash.show{
+  animation: recordFlashBg 900ms ease-out;
+}
+@keyframes recordPop{
+  0%{ transform: scale(0.80); opacity: 0; }
+  15%{ transform: scale(1.08); opacity: 1; }
+  100%{ transform: scale(1.00); opacity: 1; }
+}
+.recordFlash.show .recordFlashInner{
+  animation: recordPop 240ms ease-out;
+}
+
 </style>
 
 </head>
@@ -542,7 +584,7 @@
 
     
 
-    <div id="level"><span class="pill">N = <b id="nVal">2</b></span><span class="pill" style="margin-left:10px;">Words: <b id="wordCount">0</b></span><span class="pill" style="margin-left:10px;">Plays: <b id="playCount">0</b></span><span class="pill" style="margin-left:10px;">Time: <b id="timeLeft">10:00</b></span><button id="addTimeBtn" title="Add more play time" style="margin-left:8px;">Add Time</button></div>
+    <div id="level"><span class="pill">N = <b id="nVal">2</b></span><span class="pill" style="margin-left:10px;">Best: <b id="bestNVal">2</b></span><span class="pill" style="margin-left:10px;">Words: <b id="wordCount">0</b></span><span class="pill" style="margin-left:10px;">Plays: <b id="playCount">0</b></span><span class="pill" style="margin-left:10px;">Time: <b id="timeLeft">10:00</b></span><button id="addTimeBtn" title="Add more play time" style="margin-left:8px;">Add Time</button></div>
 <div id="panelBody">
 <div class="bg-palette-wrap" aria-label="Background">
       <span class="bg-label">Background</span>
@@ -712,6 +754,43 @@
   let timeLeftS  = 0;
   let playTimer = null;
 
+  // --- Historical Best N + Reward ---
+  const STORAGE_BEST_N = "smt_best_n";
+  const bestNEl = document.getElementById("bestNVal");
+  let bestN = 2;
+  let recordRewardedThisSession = false;
+
+  function loadBestN(){
+    try{ bestN = Number(localStorage.getItem(STORAGE_BEST_N) || 2) || 2; }catch(e){ bestN = 2; }
+  }
+  function saveBestN(){
+    try{ localStorage.setItem(STORAGE_BEST_N, String(bestN)); }catch(e){}
+  }
+  function renderBestN(){
+    if(bestNEl) bestNEl.textContent = String(bestN);
+  }
+
+  // Reward: +10 minutes when a new historical best is reached
+  const RECORD_REWARD_SECONDS = 10 * 60;
+
+  function checkAndRewardRecord(reachedN){
+    if(recordRewardedThisSession) return;
+    if(reachedN > bestN){
+      bestN = reachedN;
+      saveBestN();
+      renderBestN();
+
+      timeLeftS = Math.max(0, (timeLeftS|0) + RECORD_REWARD_SECONDS);
+      savePlayMeta();
+      renderPlayMeta();
+
+      recordRewardedThisSession = true;
+      try{ setStatus(`🎉 New record! Best N = ${bestN}. Reward: +10 minutes.`); }catch(e){}
+      celebrateRecord();
+    }
+  }
+
+
   function loadPlayMeta(){
     try{ totalPlays = Number(localStorage.getItem(STORAGE_PLAY) || 0) || 0; }catch(e){ totalPlays = 0; }
     try{ timeLeftS = Number(localStorage.getItem(STORAGE_TIME) || (DEFAULT_MINUTES*60)) || (DEFAULT_MINUTES*60); }catch(e){ timeLeftS = DEFAULT_MINUTES*60; }
@@ -752,6 +831,8 @@
 
   // init play meta
   loadPlayMeta();
+  loadBestN();
+  renderBestN();
   renderPlayMeta();
   ensurePlayTimer();
 
@@ -952,6 +1033,61 @@ const endBtn = document.getElementById("endBtn");
     audioCtx ??= new (window.AudioContext || window.webkitAudioContext)();
     if (audioCtx.state === "suspended") audioCtx.resume();
     return audioCtx;
+  }
+
+  function playTrumpetFanfare(){
+    try{
+      const ctx = ensureAudio();
+      const now = ctx.currentTime;
+
+      // Brass-ish: sawtooth + lowpass + envelope
+      function note(freq, t, dur){
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        const f = ctx.createBiquadFilter();
+        o.type = "sawtooth";
+        o.frequency.setValueAtTime(freq, t);
+        f.type = "lowpass";
+        f.frequency.setValueAtTime(1600, t);
+        f.Q.setValueAtTime(0.7, t);
+
+        // Envelope
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(0.18, t + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.06, t + 0.12);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+
+        o.connect(f); f.connect(g); g.connect(ctx.destination);
+        o.start(t);
+        o.stop(t + dur + 0.03);
+      }
+
+      // Simple triumph motif (C–E–G–C)
+      const seq = [
+        [523.25, 0.00, 0.20], // C5
+        [659.25, 0.22, 0.18], // E5
+        [783.99, 0.42, 0.22], // G5
+        [1046.50,0.66, 0.32], // C6
+      ];
+      seq.forEach(([f, dt, d]) => note(f, now + dt, d));
+    }catch(e){}
+  }
+
+  function flashRecord(){
+    const el = document.getElementById("recordFlash");
+    if(!el) return;
+    el.classList.add("show");
+    el.setAttribute("aria-hidden","false");
+    // remove after animation
+    setTimeout(()=>{
+      el.classList.remove("show");
+      el.setAttribute("aria-hidden","true");
+    }, 950);
+  }
+
+  function celebrateRecord(){
+    flashRecord();
+    playTrumpetFanfare();
   }
 
   // iOS audio unlock (first user gesture)
@@ -1824,6 +1960,7 @@ game.classList.add("goldGlow");
   async function onSuccess() {
     phase = "transition";
     maxNThisSession = Math.max(maxNThisSession, N);
+    checkAndRewardRecord(maxNThisSession);
     setStatus(`✅ Success! Next round…`);
     await goldTransition(runToken);
     N = clamp(N + 1, MIN_N, MAX_N);
@@ -1852,6 +1989,7 @@ game.classList.add("goldGlow");
     }catch(e){}
 
     phase = "ended";
+    checkAndRewardRecord(maxNThisSession);
     clearBoard();
     scoreEl.textContent = `N = ${maxNThisSession}`;
     overlay.classList.add("show");
@@ -1916,5 +2054,11 @@ restartFromOverlay.addEventListener("click", () => {
 
 })();
 </script>
+
+<!-- Record celebration flash -->
+<div id="recordFlash" class="recordFlash" aria-hidden="true">
+  <div class="recordFlashInner">🏆 New Record!</div>
+</div>
+
 </body>
 </html>
