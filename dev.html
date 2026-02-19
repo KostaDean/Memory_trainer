@@ -622,7 +622,7 @@
         <div id="addTimeContent" style="display:none;">
           <h2 style="margin-top:0;">Add Play Time</h2>
           <div style="margin:10px 0 14px 0; line-height:1.35;">
-            Tap <b>PayPal</b> to add <b>5 minutes</b> more of play time for a <b>$1</b> donation.
+            Tap <b>PayPal</b> to donate <b>$1</b>. After you complete the donation, come back and tap <b>I donated — add 5 min</b>.
           </div>
           <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
             <a id="addTimePayPalLink" href="https://www.paypal.com/paypalme/ConstantinosRagazas/1" target="_blank" rel="noopener"
@@ -631,6 +631,9 @@
                       text-decoration:none; font-weight:800;">
               PayPal ($1 → +5 min)
             </a>
+            
+            <button id="addTimeConfirmBtn" class="btn small" style="font-weight:800;">I donated — add 5 min</button>
+
             <button id="addTimeCloseBtn" class="btn small">Close</button>
           </div>
         </div>
@@ -1347,13 +1350,39 @@ const endBtn = document.getElementById("endBtn");
     }
     if(addPayLink){
       addPayLink.addEventListener("click", (e)=>{
-        // Add time immediately, then let the link navigate to PayPal.
-        addPlayTime(ADD_TIME_SECONDS);
-        try{ ensurePlayTimer(); }catch(_){}
-        // Do NOT preventDefault here—iOS Safari is more reliable with normal link navigation.
+        // Static HTML cannot confirm whether the PayPal donation completed.
+        // We set a "pending donation" flag; user confirms after donating.
+        window.__pendingDonation = true;
+        window.__pendingDonationAt = Date.now();
+        // Do NOT preventDefault—let the link navigate normally.
       });
     }
-  })();
+
+    const addConfirm = document.getElementById("addTimeConfirmBtn");
+    if(addConfirm){
+      addConfirm.addEventListener("click", (e)=>{
+        e.preventDefault();
+        const pending = !!window.__pendingDonation;
+        const ageMs = (typeof window.__pendingDonationAt === "number") ? (Date.now() - window.__pendingDonationAt) : Infinity;
+        if(!pending){
+          try{ setStatus("Tap PayPal to donate, then come back and tap “I donated — add 5 min”."); }catch(_){}
+          return;
+        }
+        if(ageMs > 30*60*1000){
+          window.__pendingDonation = false;
+          window.__pendingDonationAt = 0;
+          try{ setStatus("PayPal tap expired. Please tap PayPal again, then confirm."); }catch(_){}
+          return;
+        }
+        window.__pendingDonation = false;
+        window.__pendingDonationAt = 0;
+        addPlayTime(ADD_TIME_SECONDS);
+        try{ ensurePlayTimer(); }catch(_){}
+        closeAddTimeOverlay();
+        try{ setStatus("+5 minutes added. Thank you!"); }catch(_){}
+      }, {passive:false});
+    }
+})();
   const WORD_PAD_BEFORE_MS = 90;
   const WORD_PAD_AFTER_MS  = 140;
 
