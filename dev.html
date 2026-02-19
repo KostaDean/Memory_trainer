@@ -774,20 +774,26 @@
   const RECORD_REWARD_SECONDS = 10 * 60;
 
   function checkAndRewardRecord(reachedN){
-    if(recordRewardedThisSession) return;
+    const prevBest = bestN;
     if(reachedN > bestN){
       bestN = reachedN;
       saveBestN();
       renderBestN();
 
-      timeLeftS = Math.max(0, (timeLeftS|0) + RECORD_REWARD_SECONDS);
-      savePlayMeta();
-      renderPlayMeta();
+      // Reward time only once per session, but ALWAYS update Best N.
+      if(!recordRewardedThisSession){
+        timeLeftS = Math.max(0, (timeLeftS|0) + RECORD_REWARD_SECONDS);
+        savePlayMeta();
+        renderPlayMeta();
 
-      recordRewardedThisSession = true;
-      try{ setStatus(`🎉 New record! Best N = ${bestN}. Reward: +10 minutes.`); }catch(e){}
-      celebrateRecord();
+        recordRewardedThisSession = true;
+        try{ setStatus(`🎉 New record! Best N = ${bestN}. Reward: +10 minutes.`); }catch(e){}
+        celebrateRecord();
+      }else{
+        try{ setStatus(`🏆 New record! Best N = ${bestN}.`); }catch(e){}
+      }
     }
+  }
   }
 
 
