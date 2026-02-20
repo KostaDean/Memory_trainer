@@ -735,6 +735,7 @@ body.bestFlash::before{
   const addTimeBtn  = document.getElementById("addTimeBtn");
   const STORAGE_PLAY = "smt_total_plays";
   const STORAGE_TIME = "smt_time_left_seconds";
+  const STORAGE_BEST = "smt_best_n";
   const DEFAULT_MINUTES = 10; // initial allowed minutes
   const ADD_MINUTES = 5;      // per "Add Time" press
   let totalPlays = 0;
@@ -749,7 +750,7 @@ body.bestFlash::before{
   }
   function savePlayMeta(){
     try{ localStorage.setItem(STORAGE_PLAY, String(totalPlays)); }catch(e){}
-    try{ localStorage.setItem(STORAGE_BEST, String(bestN)); }catch(e){}
+    try{ localStorage.setItem(STORAGE_BEST, String(bestN||2)); }catch(e){}
   }
   
   // --- Best N tracking + reward ---
@@ -758,7 +759,7 @@ body.bestFlash::before{
       const n = parseInt(newN)||0;
       if(n>bestN){
         bestN = n;
-        try{ localStorage.setItem(STORAGE_BEST, String(bestN)); }catch(e){}
+        try{ localStorage.setItem(STORAGE_BEST, String(bestN||2)); }catch(e){}
         // reward: +10 minutes playtime
         timeLeftS = Math.max(0, (parseInt(timeLeftS)||0)) + 10*60;
         savePlayMeta();
@@ -798,6 +799,7 @@ function fmtTime(s){
     return `${m}:${String(r).padStart(2,"0")}`;
   }
   function renderPlayMeta(){
+    setLevel();
     if(playCountEl) playCountEl.textContent = String(totalPlays);
     if(timeLeftEl) timeLeftEl.textContent = fmtTime(timeLeftS);
     if(startBtn) startBtn.disabled = (timeLeftS <= 0);
@@ -1129,7 +1131,7 @@ const endBtn = document.getElementById("endBtn");
   function setStatus(s){ statusEl.textContent = s; }
   function setLevel(){
     const nEl=document.getElementById("nVal"); if(nEl) nEl.textContent = String(N);
-    const bEl=document.getElementById("bestVal"); if(bEl) bEl.textContent = String(bestN);
+    const bEl=document.getElementById("bestVal"); if(bEl) bEl.textContent = String(bestN||2);
   }
 
   // ---------- iOS / anti-jump ----------
