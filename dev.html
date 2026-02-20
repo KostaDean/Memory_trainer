@@ -54,7 +54,7 @@
 
   #status{ color:var(--muted); font-size:14px; }
   #level { font-size:14px; }
-  #controls{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  #controls{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; position:relative; width:100%; }
 
   button{
     padding:7px 12px;
@@ -306,6 +306,40 @@
   .bg-swatch[aria-selected="true"]{
     outline:2px solid rgba(255,255,255,0.85);
     outline-offset:2px;
+  }
+
+
+  /* --- v20: Swatches bar pinned at top-center of play field --- */
+  #bgPaletteBar{
+    position:absolute;
+    top:10px;
+    left:50%;
+    transform: translateX(-50%);
+    z-index: 30;
+    pointer-events: auto;
+  }
+  #bgPaletteBar .bg-palette{
+    max-width: min(520px, 92vw);
+    background: rgba(0,0,0,0.18);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+  }
+
+  /* --- v20: Close (X) button top-right; removes separate End button --- */
+  #closeBtn{
+    position:absolute;
+    top:10px;
+    right:10px;
+    font-size:18px;
+    line-height:1;
+    padding:8px 12px;
+  }
+  #statusWrap{
+    flex: 1 1 260px;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    min-width: 200px;
   }
 
 
@@ -585,21 +619,19 @@ body.bestFlash::before{
   <div id="controls">
     <button id="startBtn" class="primary">Play</button>
     <button id="panelBtn" title="Show/hide the control panel">Panel</button>
-    
+
     <div id="missBar" class="missBar" title="Mistakes allowed (resets each round)">
       <span class="missDot"></span><span class="missDot"></span><span class="missDot"></span>
     </div>
-<button id="endBtn" title="End game and show score">End</button>
 
-    
+    <div id="level">
+      <span class="pill">N = <b id="nVal">2</b></span>
+      <span class="pill" style="margin-left:10px;">Words: <b id="wordCount">0</b></span>
+      <span class="pill" style="margin-left:10px;">Plays: <b id="playCount">0</b></span>
+    </div>
 
-    <div id="level"><span class="pill">N = <b id="nVal">2</b></span><span class="pill">Best: <b id="bestVal">2</b></span><span class="pill" style="margin-left:10px;">Words: <b id="wordCount">0</b></span><span class="pill" style="margin-left:10px;">Plays: <b id="playCount">0</b></span><span class="pill" style="margin-left:10px;">Time: <b id="timeLeft">10:00</b></span><button id="addTimeBtn" title="Add more play time" style="margin-left:8px;">Add Time</button></div>
-<div id="panelBody">
-<div class="bg-palette-wrap" aria-label="Background">
-      <span class="bg-label">Background</span>
-      <div id="bgPalette" class="bg-palette" role="listbox" aria-label="Background colors"></div>
-
-    <div class="voice-wrap" aria-label="Voice recording">
+    <div id="panelBody">
+      <div class="voice-wrap" aria-label="Voice recording">
       <button id="uploadBtn" class="tune-btn wide" title="Upload photo overlay (tap) / clear (hold)">Upload</button>
       <button id="recBtn" class="tune-btn wide" title="Record voice (tap once per word as you speak)">Record</button>
       <button id="stopRecBtn" class="tune-btn" title="Stop recording" disabled>Stop</button>
@@ -607,8 +639,7 @@ body.bestFlash::before{
 <button id="markRecBtn" class="tune-btn" title="Mark word boundary (use if screen taps miss)" disabled>Mark</button>
 </div>
 </div>
-
-    <div class="tune-wrap" aria-label="Training tuning">
+      <div class="tune-wrap" aria-label="Training tuning">
       <div class="tune" role="group" aria-label="Timing">
         <span class="tune-label">Timing</span>
         <button class="tune-btn" id="paceMinus" aria-label="Timing down">−</button>
@@ -624,17 +655,23 @@ body.bestFlash::before{
       </div>
     </div>
 
-  </div>
+  
+    </div>
 
-  <div style="display:flex; gap:10px; align-items:center;">
-    <div id="status">Press Play once. Then it runs continuously.</div>
-    <button id="closeBtn" title="Close">✕</button>
+    <div id="statusWrap">
+      <div id="status">Press Play once. Then it runs continuously.</div>
+    </div>
+
+    <button id="closeBtn" title="End / show final score">✕</button>
   </div>
-</div>
 </header>
 
 <div id="playPanel">
   <div id="game">
+    <div id="bgPaletteBar" aria-label="Background colors">
+      <div id="bgPalette" class="bg-palette" role="listbox" aria-label="Background colors"></div>
+    </div>
+
     <div id="arena"></div>
     <svg id="linesLayer" aria-hidden="true"></svg>
 
@@ -651,7 +688,13 @@ body.bestFlash::before{
           This is the <b>highest N</b> you reached in this session.
           
         </p>
+        <div style="display:flex; gap:10px; flex-wrap:wrap; margin:8px 0 12px; align-items:center;">
+          <span class="pill">Best: <b id="bestValOverlay">2</b></span>
+          <span class="pill">Time: <b id="timeLeftOverlay">10:00</b></span>
+        </div>
+
         <div class="row">
+          <button id="addTimeOverlayBtn" title="Add more play time">Add Time (+5 min)</button>
           <button id="restartFromOverlay">Play Again</button>
           <button id="closeFromOverlay">Close</button>
         </div>
@@ -731,8 +774,8 @@ body.bestFlash::before{
   
   // --- Play count + time limit (persistent) ---
   const playCountEl = document.getElementById("playCount");
-  const timeLeftEl  = document.getElementById("timeLeft");
-  const addTimeBtn  = document.getElementById("addTimeBtn");
+  const timeLeftEl  = document.getElementById("timeLeftOverlay");
+  const addTimeBtn  = document.getElementById("addTimeOverlayBtn");
   const STORAGE_PLAY = "smt_total_plays";
   const STORAGE_TIME = "smt_time_left_seconds";
   const DEFAULT_MINUTES = 10; // initial allowed minutes
@@ -949,8 +992,7 @@ function fmtTime(s){
     }catch(e){}
   }
 
-const endBtn = document.getElementById("endBtn");
-  const closeBtn = document.getElementById("closeBtn");
+const closeBtn = document.getElementById("closeBtn");
   const statusEl = document.getElementById("status");
   const levelEl  = document.getElementById("level");
 
@@ -1130,7 +1172,7 @@ const endBtn = document.getElementById("endBtn");
   function setStatus(s){ statusEl.textContent = s; }
   function setLevel(){
     const nEl=document.getElementById("nVal"); if(nEl) nEl.textContent = String(N);
-    const bEl=document.getElementById("bestVal"); if(bEl) bEl.textContent = String(bestN);
+    const bEl=document.getElementById("bestValOverlay"); if(bEl) bEl.textContent = String(bestN);
   }
 
   // ---------- iOS / anti-jump ----------
@@ -1902,6 +1944,7 @@ game.classList.add("goldGlow");
     overlay.classList.add("show");
     setStatus("Game ended.");
     setLevel();
+    try{ renderPlayMeta(); }catch(e){}
   }
 
   function attemptClose(){
@@ -1912,11 +1955,6 @@ game.classList.add("goldGlow");
     runToken++;
     showFinalScore();
   }
-
-  endBtn.addEventListener("click", () => {
-    ensureAudio();
-    endGame();
-  });
 
   closeBtn.addEventListener("click", () => {
     ensureAudio();
