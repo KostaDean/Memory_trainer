@@ -1565,7 +1565,7 @@ function initBackgroundPalette(opts){
     } = (opts || {});
 
     const container = document.getElementById(containerId);
-    if(!container) return { setTheme: applyBackgroundTheme };
+    if(!container){ setTimeout(()=>initBackgroundPalette(opts), 50); return { setTheme: ()=>{} }; }
 
     const keys = Object.keys(BACKGROUND_THEMES);
 
@@ -1887,6 +1887,10 @@ game.classList.add("goldGlow");
     phase = "transition";
     setStatus(`✅ Success! Next round…`);
     await goldTransition(runToken);
+    // Record success at current N (before changing N)
+    try { maxNThisSession = Math.max(maxNThisSession, N); } catch(e) {}
+    try { highestSuccessfulN = N; } catch(e) {}
+    try { maybeUpdateBest(N); } catch(e) {}
     N = clamp(N + 1, MIN_N, MAX_N);
     await sleep(BETWEEN_ROUNDS_MS);
     if (phase !== "transition") return;
