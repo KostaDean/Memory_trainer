@@ -735,7 +735,6 @@ body.bestFlash::before{
   const addTimeBtn  = document.getElementById("addTimeBtn");
   const STORAGE_PLAY = "smt_total_plays";
   const STORAGE_TIME = "smt_time_left_seconds";
-  const STORAGE_BEST = "smt_best_n";
   const DEFAULT_MINUTES = 10; // initial allowed minutes
   const ADD_MINUTES = 5;      // per "Add Time" press
   let totalPlays = 0;
@@ -745,12 +744,13 @@ body.bestFlash::before{
 
   function loadPlayMeta(){
     try{ totalPlays = Number(localStorage.getItem(STORAGE_PLAY) || 0) || 0; }catch(e){ totalPlays = 0; }
-    timeLeftS = DEFAULT_MINUTES*60; // reset every page load
+    try{ timeLeftS = Number(localStorage.getItem(STORAGE_TIME) || (DEFAULT_MINUTES*60)) || (DEFAULT_MINUTES*60); }catch(e){ timeLeftS = DEFAULT_MINUTES*60; }
     try{ bestN = Number(localStorage.getItem(STORAGE_BEST) || 2) || 2; bestN = Math.max(2, Math.floor(bestN)); }catch(e){ bestN = 2; }
   }
   function savePlayMeta(){
     try{ localStorage.setItem(STORAGE_PLAY, String(totalPlays)); }catch(e){}
-    try{ localStorage.setItem(STORAGE_BEST, String(bestN||2)); }catch(e){}
+    try{ localStorage.setItem(STORAGE_TIME, String(timeLeftS)); }catch(e){}
+    try{ localStorage.setItem(STORAGE_BEST, String(bestN)); }catch(e){}
   }
   
   // --- Best N tracking + reward ---
@@ -759,7 +759,7 @@ body.bestFlash::before{
       const n = parseInt(newN)||0;
       if(n>bestN){
         bestN = n;
-        try{ localStorage.setItem(STORAGE_BEST, String(bestN||2)); }catch(e){}
+        try{ localStorage.setItem(STORAGE_BEST, String(bestN)); }catch(e){}
         // reward: +10 minutes playtime
         timeLeftS = Math.max(0, (parseInt(timeLeftS)||0)) + 10*60;
         savePlayMeta();
@@ -799,7 +799,6 @@ function fmtTime(s){
     return `${m}:${String(r).padStart(2,"0")}`;
   }
   function renderPlayMeta(){
-    setLevel();
     if(playCountEl) playCountEl.textContent = String(totalPlays);
     if(timeLeftEl) timeLeftEl.textContent = fmtTime(timeLeftS);
     if(startBtn) startBtn.disabled = (timeLeftS <= 0);
@@ -878,16 +877,6 @@ function fmtTime(s){
 
   // init play meta
   loadPlayMeta();
-    // Always reset session play-time on (re)show, including iOS back/forward cache restores.
-    const resetSessionTime = () => {
-      timeLeftS = DEFAULT_MINUTES*60;
-      renderPlayMeta();
-    };
-    resetSessionTime();
-    window.addEventListener('pageshow', () => {
-      resetSessionTime();
-    }, {passive:true});
-
   renderPlayMeta();
   ensurePlayTimer();
 
@@ -1141,7 +1130,7 @@ const endBtn = document.getElementById("endBtn");
   function setStatus(s){ statusEl.textContent = s; }
   function setLevel(){
     const nEl=document.getElementById("nVal"); if(nEl) nEl.textContent = String(N);
-    const bEl=document.getElementById("bestVal"); if(bEl) bEl.textContent = String(bestN||2);
+    const bEl=document.getElementById("bestVal"); if(bEl) bEl.textContent = String(bestN);
   }
 
   // ---------- iOS / anti-jump ----------
@@ -1565,7 +1554,7 @@ function initBackgroundPalette(opts){
     } = (opts || {});
 
     const container = document.getElementById(containerId);
-    if(!container){ setTimeout(()=>initBackgroundPalette(opts), 50); return { setTheme: ()=>{} }; }
+    if(!container) return { setTheme: applyBackgroundTheme };
 
     const keys = Object.keys(BACKGROUND_THEMES);
 
@@ -1639,8 +1628,7 @@ game.classList.add("goldGlow");
   let ROUND_RADIUS = null; // locked per round to prevent size-dial drift
   let runToken = 0;
 
-  let highestSuccessfulN = 1;
-      let maxNThisSession = 1;
+  let maxNThisSession = 2;
 
   function clearBoard() {
     circles.forEach(c => c.el?.remove());
@@ -1885,12 +1873,10 @@ game.classList.add("goldGlow");
 
   async function onSuccess() {
     phase = "transition";
+    maxNThisSession = Math.max(maxNThisSession, N);
+        maybeUpdateBest(maxNThisSession);
     setStatus(`✅ Success! Next round…`);
     await goldTransition(runToken);
-    // Record success at current N (before changing N)
-    try { maxNThisSession = Math.max(maxNThisSession, N); } catch(e) {}
-    try { highestSuccessfulN = N; } catch(e) {}
-    try { maybeUpdateBest(N); } catch(e) {}
     N = clamp(N + 1, MIN_N, MAX_N);
     await sleep(BETWEEN_ROUNDS_MS);
     if (phase !== "transition") return;
@@ -1899,6 +1885,8 @@ game.classList.add("goldGlow");
 
   async function onFailure() {
     phase = "transition";
+    maxNThisSession = Math.max(maxNThisSession, N);
+        maybeUpdateBest(maxNThisSession);
     setStatus(`❌ Wrong order. Adjusting…`);
     await goldTransition(runToken);
     N = clamp(N - 1, MIN_N, MAX_N);
@@ -1962,8 +1950,7 @@ restartFromOverlay.addEventListener("click", () => {
     runToken++;
     phase = "idle";
     N = 2;
-    highestSuccessfulN = 1;
-        maxNThisSession = 1;
+    maxNThisSession = 2;
     setLevel();
     clearBoard();
     setStatus("Starting…");
