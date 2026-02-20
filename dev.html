@@ -878,6 +878,16 @@ function fmtTime(s){
 
   // init play meta
   loadPlayMeta();
+    // Always reset session play-time on (re)show, including iOS back/forward cache restores.
+    const resetSessionTime = () => {
+      timeLeftS = DEFAULT_MINUTES*60;
+      renderPlayMeta();
+    };
+    resetSessionTime();
+    window.addEventListener('pageshow', () => {
+      resetSessionTime();
+    }, {passive:true});
+
   renderPlayMeta();
   ensurePlayTimer();
 
@@ -1629,7 +1639,8 @@ game.classList.add("goldGlow");
   let ROUND_RADIUS = null; // locked per round to prevent size-dial drift
   let runToken = 0;
 
-  let maxNThisSession = 2;
+  let highestSuccessfulN = 1;
+      let maxNThisSession = 1;
 
   function clearBoard() {
     circles.forEach(c => c.el?.remove());
@@ -1874,8 +1885,6 @@ game.classList.add("goldGlow");
 
   async function onSuccess() {
     phase = "transition";
-    maxNThisSession = Math.max(maxNThisSession, N);
-        maybeUpdateBest(maxNThisSession);
     setStatus(`✅ Success! Next round…`);
     await goldTransition(runToken);
     N = clamp(N + 1, MIN_N, MAX_N);
@@ -1886,8 +1895,6 @@ game.classList.add("goldGlow");
 
   async function onFailure() {
     phase = "transition";
-    maxNThisSession = Math.max(maxNThisSession, N);
-        maybeUpdateBest(maxNThisSession);
     setStatus(`❌ Wrong order. Adjusting…`);
     await goldTransition(runToken);
     N = clamp(N - 1, MIN_N, MAX_N);
@@ -1951,7 +1958,8 @@ restartFromOverlay.addEventListener("click", () => {
     runToken++;
     phase = "idle";
     N = 2;
-    maxNThisSession = 2;
+    highestSuccessfulN = 1;
+        maxNThisSession = 1;
     setLevel();
     clearBoard();
     setStatus("Starting…");
