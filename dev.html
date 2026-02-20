@@ -766,7 +766,7 @@ body.bestFlash::before{
   // Panel toggle (manual + auto hide while playing)
   const panelBtn = document.getElementById('panelBtn');
   const panelBody = document.getElementById('panelBody');
-  let panelHidden = false;
+  let panelHidden = panelBody ? panelBody.classList.contains('hidden') : false;
 
   function setPanelHidden(h){
     panelHidden = !!h;
@@ -774,6 +774,8 @@ body.bestFlash::before{
     if(panelBtn) panelBtn.textContent = panelHidden ? 'Panel ▾' : 'Panel';
     __updateViewportVars();
   }
+  // sync initial UI
+  setPanelHidden(panelHidden);
   if(panelBtn){
     panelBtn.addEventListener('click', ()=> setPanelHidden(!panelHidden));
   }
