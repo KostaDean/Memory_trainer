@@ -1,11 +1,12 @@
-<!doctype html>
+<!DOCTYPE html>
+
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" name="viewport"/>
 <title>Spatial Memory Trainer</title>
-
 <style>
+
   :root{
     --bg:#0b1020;
     --panel:#111a33;
@@ -56,11 +57,18 @@
   #status{ color:var(--muted); font-size:14px; }
   #level { font-size:14px; }
   #controls{
- display:flex; gap:10px; align-items:center; flex-wrap:nowrap; overflow-x:auto; -webkit-overflow-scrolling: touch; position:relative; width:100%; }
-  #controls::-webkit-scrollbar{ display:none; }
-
-
-  button{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    flex-wrap:nowrap;
+    width:100%;
+    min-width:0;
+  }
+  #leftGroup{ display:flex; align-items:center; gap:12px; flex:0 0 auto; }
+  #statusWrap{ flex:1 1 auto; min-width:0; display:flex; justify-content:center; }
+  #status{ text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  #rightGroup{ display:flex; align-items:center; gap:12px; flex:0 0 auto; }
+button{
     padding:7px 12px;
     border-radius:12px;
     border:1px solid rgba(255,255,255,0.18);
@@ -90,6 +98,8 @@
     display:grid;
     place-items:center;
     padding:6px;
+    padding-left: calc(6px + env(safe-area-inset-left));
+    padding-right: calc(6px + env(safe-area-inset-right));
     padding-bottom: calc(6px + env(safe-area-inset-bottom) + var(--vb));
   }
 
@@ -631,113 +641,89 @@ body.bestFlash::before{
   10%{ opacity:1; }
   100%{ opacity:0; }
 }
+
+#panelBtn{ white-space:nowrap; }
+
 </style>
-
 </head>
-
 <body>
-  <div id="recordToast">New record! +10 minutes 🎉</div>
-
+<div id="recordToast">New record! +10 minutes 🎉</div>
 <header>
-  <div id="controls">
-    <button id="startBtn" class="primary">Play</button>
-<div id="missBar" class="missBar" title="Mistakes allowed (resets each round)">
-      <span class="missDot"></span><span class="missDot"></span><span class="missDot"></span>
-    </div>
-<div id="panelBody" class="hidden">
-      <div class="voice-wrap" aria-label="Voice recording">
-      <button id="uploadBtn" class="tune-btn wide" title="Upload photo overlay (tap) / clear (hold)">Upload</button>
-      <button id="recBtn" class="tune-btn wide" title="Record voice (tap once per word as you speak)">Record</button>
-      <button id="stopRecBtn" class="tune-btn" title="Stop recording" disabled>Stop</button>
-      <button id="clearRecBtn" class="tune-btn" title="Clear recording" disabled>Clear</button>
-<button id="markRecBtn" class="tune-btn" title="Mark word boundary (use if screen taps miss)" disabled>Mark</button>
+<div id="controls"><div id="leftGroup"><button class="primary" id="startBtn">Play</button><div class="missBar" id="missBar" title="Mistakes allowed (resets each round)">
+<span class="missDot"></span><span class="missDot"></span><span class="missDot"></span>
+</div><div class="hidden" id="panelBody">
+<div aria-label="Voice recording" class="voice-wrap">
+<button class="tune-btn wide" id="uploadBtn" title="Upload photo overlay (tap) / clear (hold)">Upload</button>
+<button class="tune-btn wide" id="recBtn" title="Record voice (tap once per word as you speak)">Record</button>
+<button class="tune-btn" disabled="" id="stopRecBtn" title="Stop recording">Stop</button>
+<button class="tune-btn" disabled="" id="clearRecBtn" title="Clear recording">Clear</button>
+<button class="tune-btn" disabled="" id="markRecBtn" title="Mark word boundary (use if screen taps miss)">Mark</button>
 </div>
-      <div class="tune-wrap" aria-label="Training tuning">
-      <div class="tune" role="group" aria-label="Timing">
-        <span class="tune-label">Timing</span>
-        <button class="tune-btn" id="paceMinus" aria-label="Timing down">−</button>
-        <div class="dots" id="paceDots" aria-hidden="true"></div>
-        <button class="tune-btn" id="pacePlus" aria-label="Timing up">+</button>
-      </div>
-
-      <div class="tune" role="group" aria-label="Circle size">
-        <span class="tune-label">Size</span>
-        <button class="tune-btn" id="sizeMinus" aria-label="Size down">−</button>
-        <div class="dots" id="sizeDots" aria-hidden="true"></div>
-        <button class="tune-btn" id="sizePlus" aria-label="Size up">+</button>
-      </div>
-    </div>
-
-  
-    </div>
-
-    <div id="statusWrap">
-      <div id="status">Press Play once. Then it runs continuously.</div>
-    </div>
-    <button id="panelBtn" title="Show/hide the control panel">Panel</button>
-
-
-    <button id="closeBtn" title="End / show final score">✕</button>
-  </div>
+<div aria-label="Training tuning" class="tune-wrap">
+<div aria-label="Timing" class="tune" role="group">
+<span class="tune-label">Timing</span>
+<button aria-label="Timing down" class="tune-btn" id="paceMinus">−</button>
+<div aria-hidden="true" class="dots" id="paceDots"></div>
+<button aria-label="Timing up" class="tune-btn" id="pacePlus">+</button>
+</div>
+<div aria-label="Circle size" class="tune" role="group">
+<span class="tune-label">Size</span>
+<button aria-label="Size down" class="tune-btn" id="sizeMinus">−</button>
+<div aria-hidden="true" class="dots" id="sizeDots"></div>
+<button aria-label="Size up" class="tune-btn" id="sizePlus">+</button>
+</div>
+</div>
+</div></div><div id="statusWrap">
+<div id="status">Press Play once. Then it runs continuously.</div>
+</div><div id="rightGroup"><button id="panelBtn" title="Show/hide the control panel">Panel</button><button id="closeBtn" title="End / show final score">✕</button></div></div>
 </header>
-
 <div id="playPanel">
-  <div id="game">
-    <div id="bgPaletteBar" aria-label="Background colors">
-      <div id="bgPalette" class="bg-palette" role="listbox" aria-label="Background colors"></div>
-    </div>
-
-    <div id="arena"></div>
-    <svg id="linesLayer" aria-hidden="true"></svg>
-
-    <div id="photoOverlay" aria-hidden="true">
-      <img id="photoOverlayImg" alt="Uploaded photo" />
-    </div>
-
-
-    <div id="overlay" role="dialog" aria-modal="true">
-      <div id="panel">
-        <h2>Final Score</h2>
+<div id="game">
+<div aria-label="Background colors" id="bgPaletteBar">
+<div aria-label="Background colors" class="bg-palette" id="bgPalette" role="listbox"></div>
+</div>
+<div id="arena"></div>
+<svg aria-hidden="true" id="linesLayer"></svg>
+<div aria-hidden="true" id="photoOverlay">
+<img alt="Uploaded photo" id="photoOverlayImg"/>
+</div>
+<div aria-modal="true" id="overlay" role="dialog">
+<div id="panel">
+<h2>Final Score</h2>
 <div id="score">N = 2</div>
-        <div id="finalMetaWrap" style="display:flex; gap:10px; flex-wrap:wrap; margin:10px 0 6px; align-items:center;">
-          <span class="pill">N: <b id="nVal">2</b></span>
-          <span class="pill">Words: <b id="wordCount">0</b></span>
-          <span class="pill">Plays: <b id="playCount">0</b></span>
-        </div>
-        <p>
+<div id="finalMetaWrap" style="display:flex; gap:10px; flex-wrap:wrap; margin:10px 0 6px; align-items:center;">
+<span class="pill">N: <b id="nVal">2</b></span>
+<span class="pill">Words: <b id="wordCount">0</b></span>
+<span class="pill">Plays: <b id="playCount">0</b></span>
+</div>
+<p>
           This is the <b>highest N</b> you reached in this session.
           
         </p>
-        <div style="display:flex; gap:10px; flex-wrap:wrap; margin:8px 0 12px; align-items:center;">
-          <span class="pill">Best: <b id="bestValOverlay">2</b></span>
-          <span class="pill">Time: <b id="timeLeftOverlay">10:00</b></span>
-        </div>
-
-        <div class="row">
-          <button id="addTimeOverlayBtn" title="Add more play time">Add Time (+5 min)</button>
-          <button id="restartFromOverlay">Play Again</button>
-          <button id="closeFromOverlay">Close</button>
-        </div>
-
-        <div style="margin-top:12px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.14);">
-          <div style="color:var(--muted); font-size:13px; margin-bottom:8px;">
+<div style="display:flex; gap:10px; flex-wrap:wrap; margin:8px 0 12px; align-items:center;">
+<span class="pill">Best: <b id="bestValOverlay">2</b></span>
+<span class="pill">Time: <b id="timeLeftOverlay">10:00</b></span>
+</div>
+<div class="row">
+<button id="addTimeOverlayBtn" title="Add more play time">Add Time (+5 min)</button>
+<button id="restartFromOverlay">Play Again</button>
+<button id="closeFromOverlay">Close</button>
+</div>
+<div style="margin-top:12px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.14);">
+<div style="color:var(--muted); font-size:13px; margin-bottom:8px;">
             If you enjoy this trainer, please consider supporting development:
           </div>
-          <a href="https://www.paypal.com/paypalme/ConstantinosRagazas" target="_blank" rel="noopener"
-             style="display:inline-flex; align-items:center; gap:8px; padding:10px 12px; border-radius:12px;
+<a href="https://www.paypal.com/paypalme/ConstantinosRagazas" rel="noopener" style="display:inline-flex; align-items:center; gap:8px; padding:10px 12px; border-radius:12px;
                     border:1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.08); color:var(--text);
-                    text-decoration:none; font-weight:800;">
+                    text-decoration:none; font-weight:800;" target="_blank">
             Donate via PayPal
           </a>
-        </div>
-      </div>
-    </div>
-
-  </div>
 </div>
-
-
-  <input id="bgFileInput" type="file" accept="image/*" style="display:none" />
+</div>
+</div>
+</div>
+</div>
+<input accept="image/*" id="bgFileInput" style="display:none" type="file"/>
 <script>
 
   // === iOS Safari bottom bar mitigation (visualViewport) ===
