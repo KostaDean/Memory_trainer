@@ -100,17 +100,23 @@ button{
     align-items:flex-start;
     width:100%;
     box-sizing:border-box;
-    padding:6px;
-    padding-left: calc(6px + env(safe-area-inset-left));
-    padding-right: calc(6px + env(safe-area-inset-right));
+
+    /* Safe-area padding only; keep symmetric so centering is true */
+    padding-top:6px;
     padding-bottom: calc(6px + env(safe-area-inset-bottom) + var(--vb));
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
   }
 
   #game{
     touch-action: none;
     position:relative;
-    margin:0 auto;
-    width:min(900px, 96vw);
+
+    /* Centering on iOS Safari: size against the *container*, not vw */
+    width: min(900px, calc(100% - 12px));
+    max-width: 900px;
+    margin: 0 auto;
+
     height:min(600px, calc(var(--vvh) - var(--headerH) - var(--vb) - 12px));
     background: radial-gradient(900px 650px at 50% 35%, var(--gameA), var(--gameB));
     border:1px solid rgba(255,255,255,0.12);
