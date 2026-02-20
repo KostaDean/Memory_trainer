@@ -43,6 +43,7 @@
 
   header{
     padding:10px 14px;
+    position:relative;
     display:flex;
     justify-content:space-between;
     align-items:center;
@@ -54,7 +55,10 @@
 
   #status{ color:var(--muted); font-size:14px; }
   #level { font-size:14px; }
-  #controls{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; position:relative; width:100%; }
+  #controls{
+ display:flex; gap:10px; align-items:center; flex-wrap:nowrap; overflow-x:auto; -webkit-overflow-scrolling: touch; position:relative; width:100%; }
+  #controls::-webkit-scrollbar{ display:none; }
+
 
   button{
     padding:7px 12px;
@@ -85,15 +89,15 @@
   #playPanel{
     display:grid;
     place-items:center;
-    padding:12px;
-    padding-bottom: calc(12px + env(safe-area-inset-bottom) + var(--vb));
+    padding:6px;
+    padding-bottom: calc(6px + env(safe-area-inset-bottom) + var(--vb));
   }
 
   #game{
     touch-action: none;
     position:relative;
     width:min(900px, 96vw);
-    height:min(600px, calc(var(--vvh) - var(--headerH) - var(--vb) - 24px));
+    height:min(600px, calc(var(--vvh) - var(--headerH) - var(--vb) - 12px));
     background: radial-gradient(900px 650px at 50% 35%, var(--gameA), var(--gameB));
     border:1px solid rgba(255,255,255,0.12);
     border-radius:18px;
@@ -557,7 +561,26 @@
   }
 
 
+  #panelBody{
+    position:absolute;
+    left:0;
+    top:100%;
+    width:100%;
+    z-index:50;
+    background: rgba(17,26,51,0.92);
+    border-bottom: 1px solid rgba(255,255,255,0.10);
+    padding:10px 12px 12px;
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+    align-items:center;
+    max-height: min(52dvh, 420px);
+    overflow:auto;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
   #panelBody.hidden{ display:none; }
+
 
 
     /* Record celebration flash */
@@ -618,19 +641,10 @@ body.bestFlash::before{
 <header>
   <div id="controls">
     <button id="startBtn" class="primary">Play</button>
-    <button id="panelBtn" title="Show/hide the control panel">Panel</button>
-
-    <div id="missBar" class="missBar" title="Mistakes allowed (resets each round)">
+<div id="missBar" class="missBar" title="Mistakes allowed (resets each round)">
       <span class="missDot"></span><span class="missDot"></span><span class="missDot"></span>
     </div>
-
-    <div id="level">
-      <span class="pill">N = <b id="nVal">2</b></span>
-      <span class="pill" style="margin-left:10px;">Words: <b id="wordCount">0</b></span>
-      <span class="pill" style="margin-left:10px;">Plays: <b id="playCount">0</b></span>
-    </div>
-
-    <div id="panelBody">
+<div id="panelBody" class="hidden">
       <div class="voice-wrap" aria-label="Voice recording">
       <button id="uploadBtn" class="tune-btn wide" title="Upload photo overlay (tap) / clear (hold)">Upload</button>
       <button id="recBtn" class="tune-btn wide" title="Record voice (tap once per word as you speak)">Record</button>
@@ -661,6 +675,8 @@ body.bestFlash::before{
     <div id="statusWrap">
       <div id="status">Press Play once. Then it runs continuously.</div>
     </div>
+    <button id="panelBtn" title="Show/hide the control panel">Panel</button>
+
 
     <button id="closeBtn" title="End / show final score">✕</button>
   </div>
@@ -684,6 +700,11 @@ body.bestFlash::before{
       <div id="panel">
         <h2>Final Score</h2>
 <div id="score">N = 2</div>
+        <div id="finalMetaWrap" style="display:flex; gap:10px; flex-wrap:wrap; margin:10px 0 6px; align-items:center;">
+          <span class="pill">N: <b id="nVal">2</b></span>
+          <span class="pill">Words: <b id="wordCount">0</b></span>
+          <span class="pill">Plays: <b id="playCount">0</b></span>
+        </div>
         <p>
           This is the <b>highest N</b> you reached in this session.
           
@@ -1663,6 +1684,8 @@ game.classList.add("goldGlow");
   let N = 2;
   let soundOn = true; // sound effects enabled
   let phase = "idle";
+  let isRunning = false;
+
   let recallInputLocked = false; // idle | showing | recall | transition | ended
   let expectedIndex = 0;
 
@@ -1938,7 +1961,9 @@ game.classList.add("goldGlow");
   }
 
   function showFinalScore(){
-    phase = "ended";
+    isRunning = false;
+    if(startBtn) startBtn.textContent = "Play";
+phase = "ended";
     clearBoard();
     scoreEl.textContent = `N = ${maxNThisSession}`;
     overlay.classList.add("show");
@@ -1972,7 +1997,9 @@ restartFromOverlay.addEventListener("click", () => {
   });
 
   function startGame(){
-    if(timeLeftS <= 0){
+    isRunning = true;
+    if(startBtn) startBtn.textContent = "End";
+if(timeLeftS <= 0){
       renderPlayMeta();
       setStatus("No time left. Tap \"Add Time\".");
       return;
@@ -1995,8 +2022,13 @@ restartFromOverlay.addEventListener("click", () => {
     sleep(120).then(async () => { await goldTransition(runToken); await runRound(runToken); });
 }
 
-  startBtn.addEventListener("click", () => startGame());
-
+  startBtn.addEventListener("click", () => {
+    if(isRunning){
+      endGame();
+    }else{
+      startGame();
+    }
+  });
 })();
 </script>
 </body>
