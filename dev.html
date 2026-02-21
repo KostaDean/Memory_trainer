@@ -1,11 +1,12 @@
-<!doctype html>
+<!DOCTYPE html>
+
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" name="viewport"/>
 <title>Spatial Memory Trainer</title>
-
 <style>
+
   :root{
     --bg:#0b1020;
     --panel:#111a33;
@@ -43,6 +44,7 @@
 
   header{
     padding:10px 14px;
+    position:relative;
     display:flex;
     justify-content:space-between;
     align-items:center;
@@ -54,9 +56,19 @@
 
   #status{ color:var(--muted); font-size:14px; }
   #level { font-size:14px; }
-  #controls{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
-
-  button{
+  #controls{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    flex-wrap:nowrap;
+    width:100%;
+    min-width:0;
+  }
+  #leftGroup{ display:flex; align-items:center; gap:12px; flex:0 0 auto; }
+  #statusWrap{ flex:1 1 auto; min-width:0; display:flex; justify-content:center; }
+  #status{ text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  #rightGroup{ display:flex; align-items:center; gap:12px; flex:0 0 auto; }
+button{
     padding:7px 12px;
     border-radius:12px;
     border:1px solid rgba(255,255,255,0.18);
@@ -83,17 +95,29 @@
   }
 
   #playPanel{
-    display:grid;
-    place-items:center;
-    padding:12px;
-    padding-bottom: calc(12px + env(safe-area-inset-bottom) + var(--vb));
+    display:flex;
+    justify-content:center;
+    align-items:flex-start;
+    width:100%;
+    box-sizing:border-box;
+
+    /* Safe-area padding only; keep symmetric so centering is true */
+    padding-top:6px;
+    padding-bottom: calc(6px + env(safe-area-inset-bottom) + var(--vb));
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
   }
 
   #game{
     touch-action: none;
     position:relative;
-    width:min(900px, 96vw);
-    height:min(600px, calc(var(--vvh) - var(--headerH) - var(--vb) - 24px));
+
+    /* Centering on iOS Safari: size against the *container*, not vw */
+    width: min(900px, calc(100% - 12px));
+    max-width: 900px;
+    margin: 0 auto;
+
+    height:min(600px, calc(var(--vvh) - var(--headerH) - var(--vb) - 12px));
     background: radial-gradient(900px 650px at 50% 35%, var(--gameA), var(--gameB));
     border:1px solid rgba(255,255,255,0.12);
     border-radius:18px;
@@ -306,6 +330,40 @@
   .bg-swatch[aria-selected="true"]{
     outline:2px solid rgba(255,255,255,0.85);
     outline-offset:2px;
+  }
+
+
+  /* --- v20: Swatches bar pinned at top-center of play field --- */
+  #bgPaletteBar{
+    position:absolute;
+    top:10px;
+    left:50%;
+    transform: translateX(-50%);
+    z-index: 30;
+    pointer-events: auto;
+  }
+  #bgPaletteBar .bg-palette{
+    max-width: min(520px, 92vw);
+    background: rgba(0,0,0,0.18);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+  }
+
+  /* --- v20: Close (X) button top-right; removes separate End button --- */
+  #closeBtn{
+    position:absolute;
+    top:10px;
+    right:10px;
+    font-size:18px;
+    line-height:1;
+    padding:8px 12px;
+  }
+  #statusWrap{
+    flex: 1 1 260px;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    min-width: 200px;
   }
 
 
@@ -523,7 +581,26 @@
   }
 
 
+  #panelBody{
+    position:absolute;
+    left:0;
+    top:100%;
+    width:100%;
+    z-index:50;
+    background: rgba(17,26,51,0.92);
+    border-bottom: 1px solid rgba(255,255,255,0.10);
+    padding:10px 12px 12px;
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+    align-items:center;
+    max-height: min(52dvh, 420px);
+    overflow:auto;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
   #panelBody.hidden{ display:none; }
+
 
 
     /* Record celebration flash */
@@ -574,107 +651,89 @@ body.bestFlash::before{
   10%{ opacity:1; }
   100%{ opacity:0; }
 }
+
+#panelBtn{ white-space:nowrap; }
+
 </style>
-
 </head>
-
 <body>
-  <div id="recordToast">New record! +10 minutes 🎉</div>
-
+<div id="recordToast">New record! +10 minutes 🎉</div>
 <header>
-  <div id="controls">
-    <button id="startBtn" class="primary">Play</button>
-    <button id="panelBtn" title="Show/hide the control panel">Panel</button>
-    
-    <div id="missBar" class="missBar" title="Mistakes allowed (resets each round)">
-      <span class="missDot"></span><span class="missDot"></span><span class="missDot"></span>
-    </div>
-<button id="endBtn" title="End game and show score">End</button>
-
-    
-
-    <div id="level"><span class="pill">N = <b id="nVal">2</b></span><span class="pill">Best: <b id="bestVal">2</b></span><span class="pill" style="margin-left:10px;">Words: <b id="wordCount">0</b></span><span class="pill" style="margin-left:10px;">Plays: <b id="playCount">0</b></span><span class="pill" style="margin-left:10px;">Time: <b id="timeLeft">10:00</b></span><button id="addTimeBtn" title="Add more play time" style="margin-left:8px;">Add Time</button></div>
-<div id="panelBody">
-<div class="bg-palette-wrap" aria-label="Background">
-      <span class="bg-label">Background</span>
-      <div id="bgPalette" class="bg-palette" role="listbox" aria-label="Background colors"></div>
-
-    <div class="voice-wrap" aria-label="Voice recording">
-      <button id="uploadBtn" class="tune-btn wide" title="Upload photo overlay (tap) / clear (hold)">Upload</button>
-      <button id="recBtn" class="tune-btn wide" title="Record voice (tap once per word as you speak)">Record</button>
-      <button id="stopRecBtn" class="tune-btn" title="Stop recording" disabled>Stop</button>
-      <button id="clearRecBtn" class="tune-btn" title="Clear recording" disabled>Clear</button>
-<button id="markRecBtn" class="tune-btn" title="Mark word boundary (use if screen taps miss)" disabled>Mark</button>
+<div id="controls"><div id="leftGroup"><button class="primary" id="startBtn">Play</button><div class="missBar" id="missBar" title="Mistakes allowed (resets each round)">
+<span class="missDot"></span><span class="missDot"></span><span class="missDot"></span>
+</div><div class="hidden" id="panelBody">
+<div aria-label="Voice recording" class="voice-wrap">
+<button class="tune-btn wide" id="uploadBtn" title="Upload photo overlay (tap) / clear (hold)">Upload</button>
+<button class="tune-btn wide" id="recBtn" title="Record voice (tap once per word as you speak)">Record</button>
+<button class="tune-btn" disabled="" id="stopRecBtn" title="Stop recording">Stop</button>
+<button class="tune-btn" disabled="" id="clearRecBtn" title="Clear recording">Clear</button>
+<button class="tune-btn" disabled="" id="markRecBtn" title="Mark word boundary (use if screen taps miss)">Mark</button>
+</div>
+<div aria-label="Training tuning" class="tune-wrap">
+<div aria-label="Timing" class="tune" role="group">
+<span class="tune-label">Timing</span>
+<button aria-label="Timing down" class="tune-btn" id="paceMinus">−</button>
+<div aria-hidden="true" class="dots" id="paceDots"></div>
+<button aria-label="Timing up" class="tune-btn" id="pacePlus">+</button>
+</div>
+<div aria-label="Circle size" class="tune" role="group">
+<span class="tune-label">Size</span>
+<button aria-label="Size down" class="tune-btn" id="sizeMinus">−</button>
+<div aria-hidden="true" class="dots" id="sizeDots"></div>
+<button aria-label="Size up" class="tune-btn" id="sizePlus">+</button>
 </div>
 </div>
-
-    <div class="tune-wrap" aria-label="Training tuning">
-      <div class="tune" role="group" aria-label="Timing">
-        <span class="tune-label">Timing</span>
-        <button class="tune-btn" id="paceMinus" aria-label="Timing down">−</button>
-        <div class="dots" id="paceDots" aria-hidden="true"></div>
-        <button class="tune-btn" id="pacePlus" aria-label="Timing up">+</button>
-      </div>
-
-      <div class="tune" role="group" aria-label="Circle size">
-        <span class="tune-label">Size</span>
-        <button class="tune-btn" id="sizeMinus" aria-label="Size down">−</button>
-        <div class="dots" id="sizeDots" aria-hidden="true"></div>
-        <button class="tune-btn" id="sizePlus" aria-label="Size up">+</button>
-      </div>
-    </div>
-
-  </div>
-
-  <div style="display:flex; gap:10px; align-items:center;">
-    
-    <button id="closeBtn" title="Close">✕</button>
-  </div>
-</div>
+</div></div><div id="statusWrap">
+<div id="status">Press Play once. Then it runs continuously.</div>
+</div><div id="rightGroup"><button id="panelBtn" title="Show/hide the control panel">Panel</button><button id="closeBtn" title="End / show final score">✕</button></div></div>
 </header>
-
 <div id="playPanel">
-  <div id="game">
-    <div id="arena"></div>
-    <svg id="linesLayer" aria-hidden="true"></svg>
-
-    <div id="photoOverlay" aria-hidden="true">
-      <img id="photoOverlayImg" alt="Uploaded photo" />
-    </div>
-
-
-    <div id="overlay" role="dialog" aria-modal="true">
-      <div id="panel">
-        <h2>Final Score</h2>
+<div id="game">
+<div aria-label="Background colors" id="bgPaletteBar">
+<div aria-label="Background colors" class="bg-palette" id="bgPalette" role="listbox"></div>
+</div>
+<div id="arena"></div>
+<svg aria-hidden="true" id="linesLayer"></svg>
+<div aria-hidden="true" id="photoOverlay">
+<img alt="Uploaded photo" id="photoOverlayImg"/>
+</div>
+<div aria-modal="true" id="overlay" role="dialog">
+<div id="panel">
+<h2>Final Score</h2>
 <div id="score">N = 2</div>
-        <p>
+<div id="finalMetaWrap" style="display:flex; gap:10px; flex-wrap:wrap; margin:10px 0 6px; align-items:center;">
+<span class="pill">N: <b id="nVal">2</b></span>
+<span class="pill">Words: <b id="wordCount">0</b></span>
+<span class="pill">Plays: <b id="playCount">0</b></span>
+</div>
+<p>
           This is the <b>highest N</b> you reached in this session.
           
         </p>
-        <div class="row">
-          <button id="restartFromOverlay">Play Again</button>
-          <button id="closeFromOverlay">Close</button>
-        </div>
-
-        <div style="margin-top:12px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.14);">
-          <div style="color:var(--muted); font-size:13px; margin-bottom:8px;">
+<div style="display:flex; gap:10px; flex-wrap:wrap; margin:8px 0 12px; align-items:center;">
+<span class="pill">Best: <b id="bestValOverlay">2</b></span>
+<span class="pill">Time: <b id="timeLeftOverlay">10:00</b></span>
+</div>
+<div class="row">
+<button id="addTimeOverlayBtn" title="Add more play time">Add Time (+5 min)</button>
+<button id="restartFromOverlay">Play Again</button>
+<button id="closeFromOverlay">Close</button>
+</div>
+<div style="margin-top:12px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.14);">
+<div style="color:var(--muted); font-size:13px; margin-bottom:8px;">
             If you enjoy this trainer, please consider supporting development:
           </div>
-          <a href="https://www.paypal.com/paypalme/ConstantinosRagazas" target="_blank" rel="noopener"
-             style="display:inline-flex; align-items:center; gap:8px; padding:10px 12px; border-radius:12px;
+<a href="https://www.paypal.com/paypalme/ConstantinosRagazas" rel="noopener" style="display:inline-flex; align-items:center; gap:8px; padding:10px 12px; border-radius:12px;
                     border:1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.08); color:var(--text);
-                    text-decoration:none; font-weight:800;">
+                    text-decoration:none; font-weight:800;" target="_blank">
             Donate via PayPal
           </a>
-        </div>
-      </div>
-    </div>
-
-  </div>
 </div>
-
-
-  <input id="bgFileInput" type="file" accept="image/*" style="display:none" />
+</div>
+</div>
+</div>
+</div>
+<input accept="image/*" id="bgFileInput" style="display:none" type="file"/>
 <script>
 
   // === iOS Safari bottom bar mitigation (visualViewport) ===
@@ -702,7 +761,7 @@ body.bestFlash::before{
   // Panel toggle (manual + auto hide while playing)
   const panelBtn = document.getElementById('panelBtn');
   const panelBody = document.getElementById('panelBody');
-  let panelHidden = false;
+  let panelHidden = panelBody ? panelBody.classList.contains('hidden') : false;
 
   function setPanelHidden(h){
     panelHidden = !!h;
@@ -710,6 +769,8 @@ body.bestFlash::before{
     if(panelBtn) panelBtn.textContent = panelHidden ? 'Panel ▾' : 'Panel';
     __updateViewportVars();
   }
+  // sync initial UI
+  setPanelHidden(panelHidden);
   if(panelBtn){
     panelBtn.addEventListener('click', ()=> setPanelHidden(!panelHidden));
   }
@@ -731,11 +792,10 @@ body.bestFlash::before{
   
   // --- Play count + time limit (persistent) ---
   const playCountEl = document.getElementById("playCount");
-  const timeLeftEl  = document.getElementById("timeLeft");
-  const addTimeBtn  = document.getElementById("addTimeBtn");
+  const timeLeftEl  = document.getElementById("timeLeftOverlay");
+  const addTimeBtn  = document.getElementById("addTimeOverlayBtn");
   const STORAGE_PLAY = "smt_total_plays";
   const STORAGE_TIME = "smt_time_left_seconds";
-  const STORAGE_BEST = "smt_best_n";
   const DEFAULT_MINUTES = 10; // initial allowed minutes
   const ADD_MINUTES = 5;      // per "Add Time" press
   let totalPlays = 0;
@@ -745,12 +805,13 @@ body.bestFlash::before{
 
   function loadPlayMeta(){
     try{ totalPlays = Number(localStorage.getItem(STORAGE_PLAY) || 0) || 0; }catch(e){ totalPlays = 0; }
-    timeLeftS = DEFAULT_MINUTES*60; // reset every page load
+    try{ timeLeftS = Number(localStorage.getItem(STORAGE_TIME) || (DEFAULT_MINUTES*60)) || (DEFAULT_MINUTES*60); }catch(e){ timeLeftS = DEFAULT_MINUTES*60; }
     try{ bestN = Number(localStorage.getItem(STORAGE_BEST) || 2) || 2; bestN = Math.max(2, Math.floor(bestN)); }catch(e){ bestN = 2; }
   }
   function savePlayMeta(){
     try{ localStorage.setItem(STORAGE_PLAY, String(totalPlays)); }catch(e){}
-    try{ localStorage.setItem(STORAGE_BEST, String(bestN||2)); }catch(e){}
+    try{ localStorage.setItem(STORAGE_TIME, String(timeLeftS)); }catch(e){}
+    try{ localStorage.setItem(STORAGE_BEST, String(bestN)); }catch(e){}
   }
   
   // --- Best N tracking + reward ---
@@ -759,7 +820,7 @@ body.bestFlash::before{
       const n = parseInt(newN)||0;
       if(n>bestN){
         bestN = n;
-        try{ localStorage.setItem(STORAGE_BEST, String(bestN||2)); }catch(e){}
+        try{ localStorage.setItem(STORAGE_BEST, String(bestN)); }catch(e){}
         // reward: +10 minutes playtime
         timeLeftS = Math.max(0, (parseInt(timeLeftS)||0)) + 10*60;
         savePlayMeta();
@@ -799,7 +860,6 @@ function fmtTime(s){
     return `${m}:${String(r).padStart(2,"0")}`;
   }
   function renderPlayMeta(){
-    setLevel();
     if(playCountEl) playCountEl.textContent = String(totalPlays);
     if(timeLeftEl) timeLeftEl.textContent = fmtTime(timeLeftS);
     if(startBtn) startBtn.disabled = (timeLeftS <= 0);
@@ -878,16 +938,6 @@ function fmtTime(s){
 
   // init play meta
   loadPlayMeta();
-    // Always reset session play-time on (re)show, including iOS back/forward cache restores.
-    const resetSessionTime = () => {
-      timeLeftS = DEFAULT_MINUTES*60;
-      renderPlayMeta();
-    };
-    resetSessionTime();
-    window.addEventListener('pageshow', () => {
-      resetSessionTime();
-    }, {passive:true});
-
   renderPlayMeta();
   ensurePlayTimer();
 
@@ -960,8 +1010,7 @@ function fmtTime(s){
     }catch(e){}
   }
 
-const endBtn = document.getElementById("endBtn");
-  const closeBtn = document.getElementById("closeBtn");
+const closeBtn = document.getElementById("closeBtn");
   const statusEl = document.getElementById("status");
   const levelEl  = document.getElementById("level");
 
@@ -1141,7 +1190,7 @@ const endBtn = document.getElementById("endBtn");
   function setStatus(s){ statusEl.textContent = s; }
   function setLevel(){
     const nEl=document.getElementById("nVal"); if(nEl) nEl.textContent = String(N);
-    const bEl=document.getElementById("bestVal"); if(bEl) bEl.textContent = String(bestN||2);
+    const bEl=document.getElementById("bestValOverlay"); if(bEl) bEl.textContent = String(bestN);
   }
 
   // ---------- iOS / anti-jump ----------
@@ -1565,7 +1614,7 @@ function initBackgroundPalette(opts){
     } = (opts || {});
 
     const container = document.getElementById(containerId);
-    if(!container){ setTimeout(()=>initBackgroundPalette(opts), 50); return { setTheme: ()=>{} }; }
+    if(!container) return { setTheme: applyBackgroundTheme };
 
     const keys = Object.keys(BACKGROUND_THEMES);
 
@@ -1632,6 +1681,8 @@ game.classList.add("goldGlow");
   let N = 2;
   let soundOn = true; // sound effects enabled
   let phase = "idle";
+  let isRunning = false;
+
   let recallInputLocked = false; // idle | showing | recall | transition | ended
   let expectedIndex = 0;
 
@@ -1639,8 +1690,7 @@ game.classList.add("goldGlow");
   let ROUND_RADIUS = null; // locked per round to prevent size-dial drift
   let runToken = 0;
 
-  let highestSuccessfulN = 1;
-      let maxNThisSession = 1;
+  let maxNThisSession = 2;
 
   function clearBoard() {
     circles.forEach(c => c.el?.remove());
@@ -1885,12 +1935,10 @@ game.classList.add("goldGlow");
 
   async function onSuccess() {
     phase = "transition";
+    maxNThisSession = Math.max(maxNThisSession, N);
+        maybeUpdateBest(maxNThisSession);
     setStatus(`✅ Success! Next round…`);
     await goldTransition(runToken);
-    // Record success at current N (before changing N)
-    try { maxNThisSession = Math.max(maxNThisSession, N); } catch(e) {}
-    try { highestSuccessfulN = N; } catch(e) {}
-    try { maybeUpdateBest(N); } catch(e) {}
     N = clamp(N + 1, MIN_N, MAX_N);
     await sleep(BETWEEN_ROUNDS_MS);
     if (phase !== "transition") return;
@@ -1899,6 +1947,8 @@ game.classList.add("goldGlow");
 
   async function onFailure() {
     phase = "transition";
+    maxNThisSession = Math.max(maxNThisSession, N);
+        maybeUpdateBest(maxNThisSession);
     setStatus(`❌ Wrong order. Adjusting…`);
     await goldTransition(runToken);
     N = clamp(N - 1, MIN_N, MAX_N);
@@ -1908,12 +1958,15 @@ game.classList.add("goldGlow");
   }
 
   function showFinalScore(){
-    phase = "ended";
+    isRunning = false;
+    if(startBtn) startBtn.textContent = "Play";
+phase = "ended";
     clearBoard();
     scoreEl.textContent = `N = ${maxNThisSession}`;
     overlay.classList.add("show");
     setStatus("Game ended.");
     setLevel();
+    try{ renderPlayMeta(); }catch(e){}
   }
 
   function attemptClose(){
@@ -1924,11 +1977,6 @@ game.classList.add("goldGlow");
     runToken++;
     showFinalScore();
   }
-
-  endBtn.addEventListener("click", () => {
-    ensureAudio();
-    endGame();
-  });
 
   closeBtn.addEventListener("click", () => {
     ensureAudio();
@@ -1946,7 +1994,9 @@ restartFromOverlay.addEventListener("click", () => {
   });
 
   function startGame(){
-    if(timeLeftS <= 0){
+    isRunning = true;
+    if(startBtn) startBtn.textContent = "End";
+if(timeLeftS <= 0){
       renderPlayMeta();
       setStatus("No time left. Tap \"Add Time\".");
       return;
@@ -1962,16 +2012,20 @@ restartFromOverlay.addEventListener("click", () => {
     runToken++;
     phase = "idle";
     N = 2;
-    highestSuccessfulN = 1;
-        maxNThisSession = 1;
+    maxNThisSession = 2;
     setLevel();
     clearBoard();
     setStatus("Starting…");
     sleep(120).then(async () => { await goldTransition(runToken); await runRound(runToken); });
 }
 
-  startBtn.addEventListener("click", () => startGame());
-
+  startBtn.addEventListener("click", () => {
+    if(isRunning){
+      endGame();
+    }else{
+      startGame();
+    }
+  });
 })();
 </script>
 </body>
