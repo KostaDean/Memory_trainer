@@ -54,20 +54,45 @@
     flex-wrap:wrap;
   }
 
-  #status{ color:var(--muted); font-size:14px; }
+  #status{
+    font-size:14px;
+    color:var(--muted);
+    padding:0 4px;
+    text-align:left;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
   #level { font-size:14px; }
   #controls{
     display:flex;
     align-items:center;
-    gap:12px;
+    gap:10px;
     flex-wrap:nowrap;
-    width:100%;
-    min-width:0;
+    justify-content:flex-start;
   }
   #leftGroup{ display:flex; align-items:center; gap:12px; flex:0 0 auto; }
-  #statusWrap{ flex:1 1 auto; min-width:0; display:flex; justify-content:center; }
-  #status{ text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  #rightGroup{ display:flex; align-items:center; gap:12px; flex:0 0 auto; }
+  #statusWrap{
+    flex:0 0 auto;
+    min-width:0;
+    display:flex;
+    justify-content:flex-start;
+    max-width:45vw;
+  }
+  #status{
+    font-size:14px;
+    color:var(--muted);
+    padding:0 4px;
+    text-align:left;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  #rightGroup{
+    display:flex;
+    gap:10px;
+    margin-left:auto;
+  }
 button{
     padding:7px 12px;
     border-radius:12px;
@@ -103,7 +128,7 @@ button{
 
     /* Safe-area padding only; keep symmetric so centering is true */
     padding-top:6px;
-    padding-bottom: calc(6px + env(safe-area-inset-bottom) + var(--vb));
+    padding-bottom: calc(var(--vb) + env(safe-area-inset-bottom) + 8px);
     padding-left: env(safe-area-inset-left);
     padding-right: env(safe-area-inset-right);
   }
@@ -359,11 +384,11 @@ button{
     padding:8px 12px;
   }
   #statusWrap{
-    flex: 1 1 260px;
+    flex:0 0 auto;
+    min-width:0;
     display:flex;
-    justify-content:center;
-    align-items:center;
-    min-width: 200px;
+    justify-content:flex-start;
+    max-width:45vw;
   }
 
 
