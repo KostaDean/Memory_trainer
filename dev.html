@@ -126,11 +126,26 @@ button{
     width:100%;
     box-sizing:border-box;
 
-    /* Safe-area padding only; keep symmetric so centering is true */
+    /* Safe-area padding only; keep symmetric so centering is true.
+       Note: var(--vb) is already subtracted from #game height. If we also add it here,
+       we double-count the browser UI height and waste space above the URL bar. */
     padding-top:6px;
-    padding-bottom: calc(var(--vb) + env(safe-area-inset-bottom) + 8px);
+    padding-bottom: calc(env(safe-area-inset-bottom) + 6px);
     padding-left: env(safe-area-inset-left);
     padding-right: env(safe-area-inset-right);
+  }
+
+  /* screen-reader-only / non-layout status text */
+  .sr-only{
+    position:absolute !important;
+    width:1px !important;
+    height:1px !important;
+    padding:0 !important;
+    margin:-1px !important;
+    overflow:hidden !important;
+    clip:rect(0,0,0,0) !important;
+    white-space:nowrap !important;
+    border:0 !important;
   }
 
   #game{
@@ -708,9 +723,10 @@ body.bestFlash::before{
 <button aria-label="Size up" class="tune-btn" id="sizePlus">+</button>
 </div>
 </div>
-</div></div><div id="statusWrap">
-<div id="status"></div>
-</div><div id="rightGroup"><button id="panelBtn" title="Show/hide the control panel">Panel</button><button id="closeBtn" title="End / show final score">✕</button></div></div>
+</div></div>
+<!-- status is kept off-layout to prevent iPhone Safari from shifting the header -->
+<div id="status" class="sr-only" aria-live="polite"></div>
+<div id="rightGroup"><button id="panelBtn" title="Show/hide the control panel">Panel</button><button id="closeBtn" title="Close">✕</button></div></div>
 </header>
 <div id="playPanel">
 <div id="game">
@@ -2004,8 +2020,10 @@ phase = "ended";
   }
 
   closeBtn.addEventListener("click", () => {
-    ensureAudio();
-    endGame();
+    // Make ✕ behave like a real close as much as the browser allows.
+    // iOS Safari won't usually let scripts close tabs, but we can at least stop the game.
+    try{ endGame(); }catch(_e){}
+    try{ attemptClose(); }catch(_e){}
   });
 
   closeFromOverlay.addEventListener("click", () => {
