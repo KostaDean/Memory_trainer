@@ -720,6 +720,7 @@ body.bestFlash::before{
 <button class="tune-btn" disabled="" id="stopRecBtn" title="Stop recording">Stop</button>
 <button class="tune-btn" disabled="" id="clearRecBtn" title="Clear recording">Clear</button>
 <button class="tune-btn" disabled="" id="markRecBtn" title="Mark word boundary (use if screen taps miss)">Mark</button>
+<span class="pill">Words: <b id="wordCount">0</b></span>
 </div>
 <div aria-label="Training tuning" class="tune-wrap">
 <div aria-label="Timing" class="tune" role="group">
@@ -774,15 +775,12 @@ body.bestFlash::before{
 <div id="score">N = 2</div>
 <div id="finalMetaWrap" style="display:flex; gap:10px; flex-wrap:wrap; margin:10px 0 6px; align-items:center;">
 <span class="pill">N: <b id="nVal">2</b></span>
-<span class="pill">Words: <b id="wordCount">0</b></span>
+
 <span class="pill">Plays: <b id="playCount">0</b></span>
 </div>
-<p>
-          This is the <b>highest N</b> you reached in this session.
-          
-        </p>
+
 <div style="display:flex; gap:10px; flex-wrap:wrap; margin:8px 0 12px; align-items:center;">
-<span class="pill">Best: <b id="bestValOverlay">2</b></span>
+<span class="pill">Record: <b id="bestValOverlay">2</b></span>
 <span class="pill">Time: <b id="timeLeftOverlay">10:00</b></span>
 </div>
 <div class="row" style="display:flex; gap:12px; justify-content:space-between; align-items:center;">
