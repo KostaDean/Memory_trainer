@@ -694,47 +694,6 @@ body.bestFlash::before{
 
 #panelBtn{ white-space:nowrap; }
 
-
-  /* Donate button (top bar) */
-  .donateTop{
-    display:inline-flex; align-items:center; justify-content:center;
-    padding:10px 14px;
-    border-radius:14px;
-    background:#ff8a00;
-    color:#fff;
-    font-weight:700;
-    text-decoration:none;
-    border:1px solid rgba(255,255,255,.25);
-    box-shadow: 0 8px 18px rgba(0,0,0,.35);
-    user-select:none;
-    -webkit-tap-highlight-color: transparent;
-  }
-  .donateTop:active{ transform: translateY(1px); }
-
-  /* Final Score panel layout tweaks */
-  .panelTop{
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    gap:12px;
-    margin-bottom:10px;
-  }
-  .panelTitle{ font-size:28px; font-weight:800; }
-  .bigScore{ font-size:54px; font-weight:900; margin:6px 0 10px 0; }
-  .panelActions{
-    display:flex;
-    gap:12px;
-    justify-content:space-between;
-    margin-top:14px;
-  }
-  .panelActions button{ flex:1; }
-  .panelActions .primaryClose{ flex:0 0 auto; min-width:120px; margin-left:auto; }
-  .donateHint{ margin-top:12px; opacity:.85; font-size:14px; line-height:1.25; }
-
-  /* Words pill in control panel */
-  .wordsPill{ margin-left:10px; }
-  .metaRow.inPanel{ margin-top:10px; display:flex; gap:10px; flex-wrap:wrap; }
-
 </style>
 </head>
 <body>
@@ -749,7 +708,6 @@ body.bestFlash::before{
 <button class="tune-btn" disabled="" id="stopRecBtn" title="Stop recording">Stop</button>
 <button class="tune-btn" disabled="" id="clearRecBtn" title="Clear recording">Clear</button>
 <button class="tune-btn" disabled="" id="markRecBtn" title="Mark word boundary (use if screen taps miss)">Mark</button>
-        <span class="pill wordsPill">Words: <b id="wordCount">0</b></span>
 </div>
 <div aria-label="Training tuning" class="tune-wrap">
 <div aria-label="Timing" class="tune" role="group">
@@ -764,15 +722,11 @@ body.bestFlash::before{
 <div aria-hidden="true" class="dots" id="sizeDots"></div>
 <button aria-label="Size up" class="tune-btn" id="sizePlus">+</button>
 </div>
-
-<div class="metaRow inPanel"><span class="pill">Visits: <b id="visitCount">0</b></span></div>
 </div>
 </div></div>
 <!-- status is kept off-layout to prevent iPhone Safari from shifting the header -->
 <div id="status" class="sr-only" aria-live="polite"></div>
-<div id="rightGroup"><button id="panelBtn" title="Show/hide the control panel">Panel</button>
-    <a id="donateTopBtn" class="donateTop" href="https://www.paypal.me/ConstantinosRagazas" target="_blank" rel="noopener">Donate</a>
-<button id="closeBtn" title="Close">✕</button></div></div>
+<div id="rightGroup"><button id="panelBtn" title="Show/hide the control panel">Panel</button><button id="closeBtn" title="Close">✕</button></div></div>
 </header>
 <div id="playPanel">
 <div id="game">
@@ -785,28 +739,36 @@ body.bestFlash::before{
 <img alt="Uploaded photo" id="photoOverlayImg"/>
 </div>
 <div aria-modal="true" id="overlay" role="dialog">
-<div id="panel" role="dialog" aria-modal="true" aria-labelledby="finalTitle">
-  <div class="panelTop">
-    <div id="finalTitle" class="panelTitle">Final Score</div>
-    <div class="pill timePill">Time: <b id="timeLeftOverlay">5:00</b></div>
-  </div>
-
-  <div class="bigScore">N = <span id="finalN">0</span></div>
-
-  <div class="metaRow">
-    <span class="pill">Alltime: <b id="bestValOverlay">2</b></span>
-  </div>
-
-  <div class="note" id="alltimeNote">This is the highest N you reached in this session.</div>
-
-  <div class="panelActions">
-    <button id="addTimeOverlayBtn" title="Donate $1 to add 5 minutes">Add Time</button>
-    <button id="closeFromOverlay" class="primaryClose">Close</button>
-  </div>
-
-  <div class="donateHint">
-    Tap <b>Donate</b> (top-right) to support development, then tap <b>Add Time</b> to confirm and add <b>+5 min</b>.
-  </div>
+<div id="panel">
+<h2>Final Score</h2>
+<div id="score">N = 2</div>
+<div id="finalMetaWrap" style="display:flex; gap:10px; flex-wrap:wrap; margin:10px 0 6px; align-items:center;">
+<span class="pill">N: <b id="nVal">2</b></span>
+<span class="pill">Words: <b id="wordCount">0</b></span>
+<span class="pill">Plays: <b id="playCount">0</b></span>
+</div>
+<p>
+          This is the <b>highest N</b> you reached in this session.
+          
+        </p>
+<div style="display:flex; gap:10px; flex-wrap:wrap; margin:8px 0 12px; align-items:center;">
+<span class="pill">Best: <b id="bestValOverlay">2</b></span>
+<span class="pill">Time: <b id="timeLeftOverlay">10:00</b></span>
+</div>
+<div class="row">
+<button id="addTimeOverlayBtn" title="Add more play time">Add Time (+5 min)</button>
+<button id="restartFromOverlay">Play Again</button>
+<button id="closeFromOverlay">Close</button>
+</div>
+<div style="margin-top:12px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.14);">
+<div style="color:var(--muted); font-size:13px; margin-bottom:8px;">
+            If you enjoy this trainer, please consider supporting development:
+          </div>
+<a href="https://www.paypal.com/paypalme/ConstantinosRagazas" rel="noopener" style="display:inline-flex; align-items:center; gap:8px; padding:10px 12px; border-radius:12px;
+                    border:1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.08); color:var(--text);
+                    text-decoration:none; font-weight:800;" target="_blank">
+            Donate via PayPal
+          </a>
 </div>
 </div>
 </div>
@@ -870,14 +832,13 @@ body.bestFlash::before{
   const startBtn = document.getElementById("startBtn");
   
   // --- Play count + time limit (persistent) ---
-  const visitCountEl = document.getElementById("visitCount");
+  const playCountEl = document.getElementById("playCount");
   const timeLeftEl  = document.getElementById("timeLeftOverlay");
   const addTimeBtn  = document.getElementById("addTimeOverlayBtn");
   const STORAGE_PLAY = "smt_total_plays";
-    const STORAGE_BEST = "smt_best_n";
-const DEFAULT_MINUTES = 5; // initial allowed minutes
-  const ADD_MINUTES = 5;
-    const PAYPAL_URL = "https://www.paypal.me/ConstantinosRagazas";      // per "Add Time" press
+  const STORAGE_TIME = "smt_time_left_seconds";
+  const DEFAULT_MINUTES = 10; // initial allowed minutes
+  const ADD_MINUTES = 5;      // per "Add Time" press
   let totalPlays = 0;
   let timeLeftS  = 0;
   let bestN = 2;
@@ -885,21 +846,29 @@ const DEFAULT_MINUTES = 5; // initial allowed minutes
 
   function loadPlayMeta(){
     try{ totalPlays = Number(localStorage.getItem(STORAGE_PLAY) || 0) || 0; }catch(e){ totalPlays = 0; }
-        timeLeftS = DEFAULT_MINUTES*60; // reset on each page load
+    try{ timeLeftS = Number(localStorage.getItem(STORAGE_TIME) || (DEFAULT_MINUTES*60)) || (DEFAULT_MINUTES*60); }catch(e){ timeLeftS = DEFAULT_MINUTES*60; }
     try{ bestN = Number(localStorage.getItem(STORAGE_BEST) || 2) || 2; bestN = Math.max(2, Math.floor(bestN)); }catch(e){ bestN = 2; }
   }
   function savePlayMeta(){
     try{ localStorage.setItem(STORAGE_PLAY, String(totalPlays)); }catch(e){}
-        try{ localStorage.setItem(STORAGE_BEST, String(bestN)); }catch(e){}
+    try{ localStorage.setItem(STORAGE_TIME, String(timeLeftS)); }catch(e){}
+    try{ localStorage.setItem(STORAGE_BEST, String(bestN)); }catch(e){}
   }
   
   // --- Best N tracking + reward ---
   function maybeUpdateBest(newN){
-    const n = parseInt(newN)||0;
-    if(n<=bestN) return false;
-    bestN = n;
-    try{ localStorage.setItem(STORAGE_BEST, String(bestN)); }catch(e){}
-    return true;
+    try{
+      const n = parseInt(newN)||0;
+      if(n>bestN){
+        bestN = n;
+        try{ localStorage.setItem(STORAGE_BEST, String(bestN)); }catch(e){}
+        // reward: +10 minutes playtime
+        timeLeftS = Math.max(0, (parseInt(timeLeftS)||0)) + 10*60;
+        savePlayMeta();
+        renderPlayMeta();
+        celebrateNewBest();
+      }
+    }catch(e){}
   }
 
   function celebrateNewBest(){
@@ -932,10 +901,8 @@ function fmtTime(s){
     return `${m}:${String(r).padStart(2,"0")}`;
   }
   function renderPlayMeta(){
-    if(visitCountEl) visitCountEl.textContent = String(totalPlays);
+    if(playCountEl) playCountEl.textContent = String(totalPlays);
     if(timeLeftEl) timeLeftEl.textContent = fmtTime(timeLeftS);
-    const allEl = document.getElementById("bestValOverlay");
-    if(allEl) allEl.textContent = String(bestN);
     if(startBtn) startBtn.disabled = (timeLeftS <= 0);
   }
   function showRecordToast(){
@@ -1017,15 +984,12 @@ function fmtTime(s){
 
   if(addTimeBtn){
     addTimeBtn.addEventListener("click", ()=>{
-      // Donation can’t be verified automatically from a plain web page.
-      // We open PayPal, then ask the user to confirm the donation.
-      try{ window.open(PAYPAL_URL, "_blank", "noopener"); }catch(e){}
-      const ok = confirm(`After donating $1 on PayPal, tap OK to add ${ADD_MINUTES} minutes.`);
-      if(!ok) return;
       timeLeftS += (ADD_MINUTES*60);
+      savePlayMeta();
       renderPlayMeta();
+      setStatus(`Added ${ADD_MINUTES} minutes.`);
     });
-}
+  }
 
 
   // ---- Forgiving misses (kid-friendly) ----
@@ -1145,7 +1109,9 @@ const closeBtn = document.getElementById("closeBtn");
   }
 
   const overlay = document.getElementById("overlay");
-  const scoreEl = document.getElementById("finalN");  const closeFromOverlay = document.getElementById("closeFromOverlay");
+  const scoreEl = document.getElementById("score");
+  const restartFromOverlay = document.getElementById("restartFromOverlay");
+  const closeFromOverlay = document.getElementById("closeFromOverlay");
 
   const linesLayer = document.getElementById("linesLayer");
 
@@ -1265,7 +1231,7 @@ const closeBtn = document.getElementById("closeBtn");
   function setStatus(s){ statusEl.textContent = s; }
   function setLevel(){
     const nEl=document.getElementById("nVal"); if(nEl) nEl.textContent = String(N);
-    
+    const bEl=document.getElementById("bestValOverlay"); if(bEl) bEl.textContent = String(bestN);
   }
 
   // ---------- iOS / anti-jump ----------
@@ -2011,7 +1977,7 @@ game.classList.add("goldGlow");
   async function onSuccess() {
     phase = "transition";
     maxNThisSession = Math.max(maxNThisSession, N);
-        // (alltime record is evaluated at session end)
+        maybeUpdateBest(maxNThisSession);
     setStatus(`✅ Success! Next round…`);
     await goldTransition(runToken);
     N = clamp(N + 1, MIN_N, MAX_N);
@@ -2023,7 +1989,7 @@ game.classList.add("goldGlow");
   async function onFailure() {
     phase = "transition";
     maxNThisSession = Math.max(maxNThisSession, N);
-        // (alltime record is evaluated at session end)
+        maybeUpdateBest(maxNThisSession);
     setStatus(`❌ Wrong order. Adjusting…`);
     await goldTransition(runToken);
     N = clamp(N - 1, MIN_N, MAX_N);
@@ -2034,39 +2000,18 @@ game.classList.add("goldGlow");
 
   function showFinalScore(){
     isRunning = false;
-    phase = "ended";
     if(startBtn) startBtn.textContent = "Play";
+phase = "ended";
     clearBoard();
-
-    // Update overlay values
-    if(scoreEl) scoreEl.textContent = String(maxNThisSession);
-
-    // Evaluate ALLTIME record only here (end of session)
-    const brokeAlltime = maybeUpdateBest(maxNThisSession);
-    if(brokeAlltime){
-      timeLeftS += (REWARD_MINUTES*60);
-      celebrateNewBest();
-    }
-    const noteEl = document.getElementById("alltimeNote");
-    if(noteEl){
-      noteEl.textContent = brokeAlltime
-        ? `New ALLTIME record! +${REWARD_MINUTES} minutes added.`
-        : "This is the highest N you reached in this session.";
-    }
-
-    renderPlayMeta();
+    scoreEl.textContent = `N = ${maxNThisSession}`;
     overlay.classList.add("show");
-    setStatus("Final score shown.");
+    setStatus("Game ended.");
+    setLevel();
+    try{ renderPlayMeta(); }catch(e){}
   }
 
   function attemptClose(){
-    // iOS Safari won’t allow scripts to close a normal tab.
-    // Best effort: stop the game, then navigate away/back.
     try { window.close(); } catch(e) {}
-    try {
-      if(history.length > 1) history.back();
-      else window.location.href = "about:blank";
-    } catch(e) {}
   }
 
   function endGame(){
