@@ -695,6 +695,14 @@ body.bestFlash::before{
 #panelBtn{ white-space:nowrap; }
 
 </style>
+
+<style>
+/* Hide old donate section inside Final Score panel */
+#panel a[href*="paypal"] {
+    display:none !important;
+}
+</style>
+
 </head>
 <body>
 <div id="recordToast">New record! +10 minutes 🎉</div>
@@ -726,7 +734,25 @@ body.bestFlash::before{
 </div></div>
 <!-- status is kept off-layout to prevent iPhone Safari from shifting the header -->
 <div id="status" class="sr-only" aria-live="polite"></div>
-<div id="rightGroup"><button id="panelBtn" title="Show/hide the control panel">Panel</button><button id="closeBtn" title="Close">✕</button></div></div>
+<div id="rightGroup"><button id="panelBtn" title="Show/hide the control panel">Panel</button>
+<a href="https://www.paypal.com/paypalme/ConstantinosRagazas"
+   target="_blank"
+   rel="noopener"
+   id="donateBtn"
+   style="
+     padding:10px 16px;
+     border-radius:14px;
+     background:#f7931a;
+     color:white;
+     font-weight:800;
+     text-decoration:none;
+     border:none;
+     box-shadow:0 4px 14px rgba(247,147,26,0.45);
+   ">
+  Donate
+</a>
+
+<button id="closeBtn" title="Close">✕</button></div></div>
 </header>
 <div id="playPanel">
 <div id="game">
