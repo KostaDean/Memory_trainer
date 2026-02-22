@@ -314,6 +314,8 @@ button{
     flex-wrap:wrap;
     justify-content:flex-end;
   }
+.row-right{display:flex; justify-content:space-between; align-items:center; gap:12px;}
+.spacer{flex:1;}
 
   /* --- v15: Primary Play button --- */
   button.primary{
@@ -735,23 +737,6 @@ body.bestFlash::before{
 <!-- status is kept off-layout to prevent iPhone Safari from shifting the header -->
 <div id="status" class="sr-only" aria-live="polite"></div>
 <div id="rightGroup"><button id="panelBtn" title="Show/hide the control panel">Panel</button>
-<a href="https://www.paypal.com/paypalme/ConstantinosRagazas"
-   target="_blank"
-   rel="noopener"
-   id="donateBtn"
-   style="
-     padding:10px 16px;
-     border-radius:14px;
-     background:#f7931a;
-     color:white;
-     font-weight:800;
-     text-decoration:none;
-     border:none;
-     box-shadow:0 4px 14px rgba(247,147,26,0.45);
-   ">
-  Donate
-</a>
-
 <button id="closeBtn" title="Close">✕</button></div></div>
 </header>
 <div id="playPanel">
@@ -781,20 +766,10 @@ body.bestFlash::before{
 <span class="pill">Best: <b id="bestValOverlay">2</b></span>
 <span class="pill">Time: <b id="timeLeftOverlay">10:00</b></span>
 </div>
-<div class="row">
-<button id="addTimeOverlayBtn" title="Add more play time">Add Time (+5 min)</button>
-<button id="restartFromOverlay">Play Again</button>
-<button id="closeFromOverlay">Close</button>
+<div class="row row-right">
+  <button id="addTimeOverlayBtn" title="Add more play time">Add Time (+5 min)</button>
+  <button id="closeFromOverlay">Close</button>
 </div>
-<div style="margin-top:12px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.14);">
-<div style="color:var(--muted); font-size:13px; margin-bottom:8px;">
-            If you enjoy this trainer, please consider supporting development:
-          </div>
-<a href="https://www.paypal.com/paypalme/ConstantinosRagazas" rel="noopener" style="display:inline-flex; align-items:center; gap:8px; padding:10px 12px; border-radius:12px;
-                    border:1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.08); color:var(--text);
-                    text-decoration:none; font-weight:800;" target="_blank">
-            Donate via PayPal
-          </a>
 </div>
 </div>
 </div>
@@ -1136,7 +1111,6 @@ const closeBtn = document.getElementById("closeBtn");
 
   const overlay = document.getElementById("overlay");
   const scoreEl = document.getElementById("score");
-  const restartFromOverlay = document.getElementById("restartFromOverlay");
   const closeFromOverlay = document.getElementById("closeFromOverlay");
 
   const linesLayer = document.getElementById("linesLayer");
@@ -2056,12 +2030,6 @@ phase = "ended";
     overlay.classList.remove("show");
     setStatus("Score panel closed.");
   });
-restartFromOverlay.addEventListener("click", () => {
-    // If we are in photoMode, keep overlay shown; otherwise hide it.
-    if(!overlay.classList.contains("photoMode")) overlay.classList.remove("show");
-    startGame();
-  });
-
   function startGame(){
     isRunning = true;
     if(startBtn) startBtn.textContent = "End";
