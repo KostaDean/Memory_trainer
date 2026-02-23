@@ -285,6 +285,7 @@ button{
   }
   #overlay.show{ display:flex; }
   #panel{
+    position:relative;
     width:min(520px, 92vw);
     background: rgba(17,26,51,0.94);
     border:1px solid rgba(255,255,255,0.14);
@@ -292,6 +293,8 @@ button{
     box-shadow: 0 25px 90px rgba(0,0,0,0.55);
     padding:18px 18px 14px;
   }
+#viewsPill{ position:absolute; top:14px; right:16px; font-size:14px; }
+
   #panel h2{
     margin:0 0 8px;
     font-size:20px;
@@ -771,21 +774,18 @@ body.bestFlash::before{
 </div>
 <div aria-modal="true" id="overlay" role="dialog">
 <div id="panel">
-<h2>Final Score</h2>
+  <div id="viewsPill" class="pill">Views: <b id="playCount">0</b></div>
+  <h2>Final Score</h2>
 <div id="score">N = 2</div>
-<div id="finalMetaWrap" style="display:flex; gap:10px; flex-wrap:wrap; margin:10px 0 6px; align-items:center;">
-<span class="pill">N: <b id="nVal">2</b></span>
-
-<span class="pill">Plays: <b id="playCount">0</b></span>
-</div>
+<div id="finalMetaWrap" style="display:none;"></div>
 
 <div style="display:flex; gap:10px; flex-wrap:wrap; margin:8px 0 12px; align-items:center;">
-<span class="pill">Record: <b id="bestValOverlay">2</b></span>
-<span class="pill">Time: <b id="timeLeftOverlay">10:00</b></span>
+  <span class="pill">WeekHigh: <b id="bestValOverlay">2</b></span>
 </div>
 <div class="row" style="display:flex; gap:12px; justify-content:space-between; align-items:center;">
-<button id="addTimeOverlayBtn" title="Add more play time">Add Time</button>
-<button id="closeFromOverlay">Close</button>
+  <button id="addTimeOverlayBtn" title="Add more play time">Add Time</button>
+  <span class="pill" style="margin-left:auto; margin-right:auto;">Time: <b id="timeLeftOverlay">05:00</b></span>
+  <button id="closeFromOverlay">Close</button>
 </div>
 </div>
 </div>
@@ -853,6 +853,8 @@ body.bestFlash::before{
   const timeLeftEl  = document.getElementById("timeLeftOverlay");
   const addTimeBtn  = document.getElementById("addTimeOverlayBtn");
   const STORAGE_PLAY = "smt_total_plays";
+  const STORAGE_WEEK = "smt_week_key";
+  const STORAGE_WEEKHIGH = "smt_week_high";
   const STORAGE_TIME = "smt_time_left_seconds";
   const DEFAULT_MINUTES = 5; // initial allowed minutes
   const ADD_MINUTES = 5;      // per "Add Time" press
@@ -861,15 +863,42 @@ body.bestFlash::before{
   let bestN = 2;
   let playTimer = null;
 
+  function getWeekKey(date=new Date()){
+    const d = new Date(date);
+    d.setHours(0,0,0,0);
+    // Week starts on Sunday (getDay() === 0)
+    d.setDate(d.getDate() - d.getDay());
+    const y = d.getFullYear();
+    const m = String(d.getMonth()+1).padStart(2,'0');
+    const day = String(d.getDate()).padStart(2,'0');
+    return `${y}-${m}-${day}`;
+  }
+
   function loadPlayMeta(){
+    // total views (persist)
     try{ totalPlays = Number(localStorage.getItem(STORAGE_PLAY) || 0) || 0; }catch(e){ totalPlays = 0; }
+
+    // time is per-session: always reset on page load
     timeLeftS = DEFAULT_MINUTES*60;
-    try{ bestN = Number(localStorage.getItem(STORAGE_BEST) || 2) || 2; bestN = Math.max(2, Math.floor(bestN)); }catch(e){ bestN = 2; }
+
+    // weekly high: resets every Sunday midnight (local time)
+    try{
+      const wk = getWeekKey();
+      const storedWk = localStorage.getItem(STORAGE_WEEK) || "";
+      if(storedWk !== wk){
+        localStorage.setItem(STORAGE_WEEK, wk);
+        localStorage.setItem(STORAGE_WEEKHIGH, "2");
+      }
+      bestN = Number(localStorage.getItem(STORAGE_WEEKHIGH) || 2) || 2;
+      bestN = Math.max(2, Math.floor(bestN));
+    }catch(e){
+      bestN = 2;
+    }
   }
   function savePlayMeta(){
     try{ localStorage.setItem(STORAGE_PLAY, String(totalPlays)); }catch(e){}
-    try{ localStorage.setItem(STORAGE_TIME, String(timeLeftS)); }catch(e){}
-    try{ localStorage.setItem(STORAGE_BEST, String(bestN)); }catch(e){}
+    try{ localStorage.setItem(STORAGE_WEEKHIGH, String(bestN)); }catch(e){}
+    // timeLeftS is session-only: do NOT persist
   }
   
   // --- Best N tracking + reward ---
