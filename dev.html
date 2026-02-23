@@ -854,7 +854,7 @@ body.bestFlash::before{
   const addTimeBtn  = document.getElementById("addTimeOverlayBtn");
   const STORAGE_PLAY = "smt_total_plays";
   const STORAGE_TIME = "smt_time_left_seconds";
-  const DEFAULT_MINUTES = 10; // initial allowed minutes
+  const DEFAULT_MINUTES = 5; // initial allowed minutes
   const ADD_MINUTES = 5;      // per "Add Time" press
   let totalPlays = 0;
   let timeLeftS  = 0;
@@ -868,23 +868,16 @@ body.bestFlash::before{
   }
   function savePlayMeta(){
     try{ localStorage.setItem(STORAGE_PLAY, String(totalPlays)); }catch(e){}
-    try{ localStorage.setItem(STORAGE_TIME, String(timeLeftS)); }catch(e){}
+    // Time is per-session (do not persist)
+    // try{ localStorage.setItem(STORAGE_TIME, String(timeLeftS)); }catch(e){}
     try{ localStorage.setItem(STORAGE_BEST, String(bestN)); }catch(e){}
   }
   
   // --- Best N tracking + reward ---
   function maybeUpdateBest(newN){
-    try{
-      const n = parseInt(newN)||0;
-      if(n>bestN){
-        bestN = n;
-        try{ localStorage.setItem(STORAGE_BEST, String(bestN)); }catch(e){}
-        // reward: +10 minutes playtime
-        timeLeftS = Math.max(0, (parseInt(timeLeftS)||0)) + 10*60;
-        savePlayMeta();
-        renderPlayMeta();
-        celebrateNewBest();
-      }
+    // Deprecated: record is evaluated only when the session ends (Final Score).
+    // Left here so older call-sites (if any) won't crash.
+  }
     }catch(e){}
   }
 
@@ -982,7 +975,8 @@ function fmtTime(s){
       if(phase === "idle" || phase === "ended") return;
       if(timeLeftS <= 0) return;
       timeLeftS = Math.max(0, timeLeftS - 1);
-      savePlayMeta();
+      // savePlayMeta(); // time is per-session
+
       renderPlayMeta();
       if(timeLeftS <= 0){
         // time expired -> end current session and disable Play
@@ -1001,8 +995,12 @@ function fmtTime(s){
 
   if(addTimeBtn){
     addTimeBtn.addEventListener("click", ()=>{
+      // Open PayPal donation page (static site cannot auto-verify payment)
+      try { window.open(donateBtn?.href || "https://www.paypal.me/ConstantinosRagazas", "_blank", "noopener"); } catch(e) {}
+      const ok = window.confirm("After completing the $1 PayPal donation, tap OK to add 5 minutes of play time.");
+      if(!ok) return;
       timeLeftS += (ADD_MINUTES*60);
-      savePlayMeta();
+      // Time is per-session; no persistence needed
       renderPlayMeta();
       setStatus(`Added ${ADD_MINUTES} minutes.`);
     });
@@ -1854,6 +1852,17 @@ game.classList.add("goldGlow");
 
     phase = "transition";
     clearBoard();
+
+    // Evaluate record only at session end
+    const prevRecord = bestN;
+    if (maxNThisSession > bestN){
+      bestN = maxNThisSession;
+      try{ localStorage.setItem(STORAGE_BESTN, String(bestN)); }catch(e){}
+      // Bonus time for breaking the record
+      timeLeftS += 10*60;
+      try{ triggerRecordCelebration(); }catch(e){}
+    }
+
     syncLinesViewport();
     setLevel();
     ROUND_RADIUS = RECALL_RADIUS; // lock radius for this round
@@ -1994,8 +2003,7 @@ game.classList.add("goldGlow");
   async function onSuccess() {
     phase = "transition";
     maxNThisSession = Math.max(maxNThisSession, N);
-        maybeUpdateBest(maxNThisSession);
-    setStatus(`✅ Success! Next round…`);
+      setStatus(`✅ Success! Next round…`);
     await goldTransition(runToken);
     N = clamp(N + 1, MIN_N, MAX_N);
     await sleep(BETWEEN_ROUNDS_MS);
@@ -2006,8 +2014,7 @@ game.classList.add("goldGlow");
   async function onFailure() {
     phase = "transition";
     maxNThisSession = Math.max(maxNThisSession, N);
-        maybeUpdateBest(maxNThisSession);
-    setStatus(`❌ Wrong order. Adjusting…`);
+      setStatus(`❌ Wrong order. Adjusting…`);
     await goldTransition(runToken);
     N = clamp(N - 1, MIN_N, MAX_N);
     await sleep(BETWEEN_ROUNDS_MS);
@@ -2020,6 +2027,17 @@ game.classList.add("goldGlow");
     if(startBtn) startBtn.textContent = "Play";
 phase = "ended";
     clearBoard();
+
+    // Evaluate record only at session end
+    const prevRecord = bestN;
+    if (maxNThisSession > bestN){
+      bestN = maxNThisSession;
+      try{ localStorage.setItem(STORAGE_BESTN, String(bestN)); }catch(e){}
+      // Bonus time for breaking the record
+      timeLeftS += 10*60;
+      try{ triggerRecordCelebration(); }catch(e){}
+    }
+
     scoreEl.textContent = `N = ${maxNThisSession}`;
     overlay.classList.add("show");
     setStatus("Game ended.");
@@ -2064,6 +2082,7 @@ if(timeLeftS <= 0){
     // Count a Play press (persistent)
     totalPlays += 1;
     savePlayMeta();
+
     renderPlayMeta();
 
     ensureAudio();
@@ -2075,6 +2094,17 @@ if(timeLeftS <= 0){
     maxNThisSession = 2;
     setLevel();
     clearBoard();
+
+    // Evaluate record only at session end
+    const prevRecord = bestN;
+    if (maxNThisSession > bestN){
+      bestN = maxNThisSession;
+      try{ localStorage.setItem(STORAGE_BESTN, String(bestN)); }catch(e){}
+      // Bonus time for breaking the record
+      timeLeftS += 10*60;
+      try{ triggerRecordCelebration(); }catch(e){}
+    }
+
     setStatus("Starting…");
     sleep(120).then(async () => { await goldTransition(runToken); await runRound(runToken); });
 }
