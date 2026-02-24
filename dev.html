@@ -696,28 +696,6 @@ body.bestFlash::before{
   100%{ opacity:0; }
 }
 
-
-/* New Best celebration overlay (more reliable than body::before on iOS) */
-#celebrateOverlay{
-  position:fixed;
-  inset:0;
-  pointer-events:none;
-  opacity:0;
-  z-index:100000;
-  background: radial-gradient(circle at 50% 35%, rgba(255,215,0,0.50), rgba(255,215,0,0.0) 60%),
-              rgba(255,215,0,0.12);
-  mix-blend-mode: screen;
-}
-#celebrateOverlay.on{
-  animation: celebrateOverlayAnim 0.9s ease-out forwards;
-}
-@keyframes celebrateOverlayAnim{
-  0%{opacity:0;}
-  10%{opacity:1;}
-  100%{opacity:0;}
-}
-
-
 #panelBtn{ white-space:nowrap; }
 
 
@@ -950,68 +928,30 @@ body.bestFlash::before{
   }
 
   function celebrateNewBest(){
-    // Gold flash + "trumpet" motif using WebAudio
+    // quick gold flash + simple "trumpet" motif using WebAudio
     try{
-      const ov = document.getElementById("celebrateOverlay");
-      if(ov){
-        ov.classList.remove("on"); // restart animation
-        // force reflow
-        void ov.offsetWidth;
-        ov.classList.add("on");
-      }else{
-        document.body.classList.add('bestFlash');
-        setTimeout(()=>document.body.classList.remove('bestFlash'), 900);
-      }
+      document.body.classList.add('bestFlash');
+      // extra visible cue on the play field
+      try{ game.classList.add('goldGlow','goldB'); setTimeout(()=>game.classList.remove('goldB','goldGlow'), 520); }catch(_e){}
+      setTimeout(()=>document.body.classList.remove('bestFlash'), 900);
     }catch(e){}
-
     if(!soundOn) return;
-
-    let ctx;
+    try{ ensureAudio(); }catch(e){}
+    // short fanfare (works reliably on iOS because this is called from an end-of-session tap)
     try{
-      ctx = ensureAudio();
-      // If iOS suspended, resume must happen in a user gesture; we try anyway
-      if(ctx.state === "suspended"){
-        // resume() is async; but scheduling notes still works once resumed
-        try{ ctx.resume(); }catch(e){}
+      const seq = [
+        [523.25, 0.10, 0.22], // C5
+        [659.25, 0.10, 0.22], // E5
+        [783.99, 0.14, 0.20], // G5
+        [1046.50,0.22, 0.18], // C6
+        [783.99, 0.12, 0.16], // G5
+        [1046.50,0.26, 0.18], // C6
+      ];
+      let t = 0;
+      for(const [f,d,p] of seq){
+        setTimeout(()=>{ try{ playTone(f,d,p,"sawtooth"); }catch(_e){} }, t);
+        t += Math.max(50, d*1000);
       }
-    }catch(e){
-      return;
-    }
-
-    // Schedule notes on the AudioContext timeline (no setTimeout needed, more reliable on iOS)
-    const now = ctx.currentTime + 0.02;
-    const seq = [
-      [523.25, 0.10, 0.22], // C5
-      [659.25, 0.10, 0.22], // E5
-      [783.99, 0.14, 0.20], // G5
-      [1046.50,0.22, 0.18], // C6
-      [783.99, 0.12, 0.16], // G5
-      [1046.50,0.26, 0.18], // C6
-    ];
-
-    let t = 0;
-    for(const [f,d,p] of seq){
-      const startAt = now + t;
-      try{ playToneAt(ctx, f, startAt, d, p, "sawtooth"); }catch(e){}
-      t += Math.max(0.06, d*0.9);
-    }
-  }
-
-  // Tone helper that schedules at a specific AudioContext time
-  function playToneAt(ctx, freq, startAt, dur=0.14, peak=0.22, type="sawtooth"){
-    if(!soundOn) return;
-    const o = ctx.createOscillator();
-    const g = ctx.createGain();
-    o.type = type;
-    o.frequency.setValueAtTime(freq, startAt);
-    g.gain.setValueAtTime(0.0001, startAt);
-    g.gain.exponentialRampToValueAtTime(Math.max(0.0002, peak), startAt + 0.01);
-    g.gain.exponentialRampToValueAtTime(0.0001, startAt + Math.max(0.03, dur));
-    o.connect(g);
-    g.connect(ctx.destination);
-    o.start(startAt);
-    o.stop(startAt + Math.max(0.05, dur) + 0.02);
-  }
     }catch(e){}
   }
 function fmtTime(s){
@@ -1892,18 +1832,22 @@ game.classList.add("goldGlow");
   if(soundToggleBtn){
     const toggleSound = (e)=>{
       try{ e?.preventDefault?.(); }catch(_e){}
+      try{ e?.stopPropagation?.(); }catch(_e){}
       soundOn = !soundOn;
       try{ localStorage.setItem(STORAGE_SOUND, soundOn ? "1" : "0"); }catch(e){}
       renderSoundToggle();
       try{ setStatus(soundOn ? "Sound on." : "Sound off."); }catch(e){}
       // If turning sound ON, ensure audio context exists (iOS needs gesture; this is a gesture)
-      if(soundOn){ try{ ensureAudio(); }catch(e){} }
+      if(soundOn){
+        try{ ensureAudio(); }catch(e){}
+        // tiny confirmation chirp
+        try{ playTone(440, 0.06, 0.12, "sine"); }catch(e){}
+      }
     };
-    // pointerdown is more reliable than click on iOS when overlays / preventDefault are used elsewhere
+    // Avoid double-toggle on iOS: use pointerdown/touchend only (no click)
     soundToggleBtn.addEventListener("pointerdown", toggleSound, {passive:false});
-    // Do not also bind "click" (iOS will fire both pointerdown and click, causing double-toggle)
-    soundToggleBtn.addEventListener("touchstart", toggleSound, {passive:false});
-}
+    soundToggleBtn.addEventListener("touchend", toggleSound, {passive:false});
+  }
 
   let phase = "idle";
   let isRunning = false;
@@ -2258,7 +2202,5 @@ if(timeLeftS <= 0){
   });
 })();
 </script>
-
-  <div id="celebrateOverlay" aria-hidden="true"></div>
 </body>
 </html>
