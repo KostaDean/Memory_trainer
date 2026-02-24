@@ -902,16 +902,23 @@ body.bestFlash::before{
     try{ localStorage.setItem(STORAGE_WEEKHIGH, String(bestN)); }catch(e){}
     // timeLeftS is session-only: do NOT persist
   }
-  
-  // --- Best N tracking + reward ---
-  function maybeUpdateBest(newN){
+  // --- Best N tracking (reward is granted at END of session) ---
+  let pendingBestThisSession = null;
+
+  function notePotentialBest(newN){
+    const n = parseInt(newN)||0;
+    if(!pendingBestThisSession) pendingBestThisSession = n;
+    else pendingBestThisSession = Math.max(pendingBestThisSession, n);
+  }
+
+  function grantEndOfSessionRewardIfAny(){
     try{
-      const n = parseInt(newN)||0;
-      if(n>bestN){
-        bestN = n;
-        try{ localStorage.setItem(STORAGE_BEST, String(bestN)); }catch(e){}
-        // reward: +10 minutes playtime
-        timeLeftS += 10*60;
+      const achieved = pendingBestThisSession ?? 0;
+      if(achieved > bestN){
+        bestN = achieved;
+        try{ localStorage.setItem(STORAGE_WEEKHIGH, String(bestN)); }catch(e){}
+        // reward: +5 minutes playtime (for testing/reward allocation)
+        timeLeftS += 5*60;
         savePlayMeta();
         renderPlayMeta();
         celebrateNewBest();
@@ -2067,7 +2074,7 @@ game.classList.add("goldGlow");
   async function onSuccess() {
     phase = "transition";
     maxNThisSession = Math.max(maxNThisSession, N);
-        maybeUpdateBest(maxNThisSession);
+        notePotentialBest(maxNThisSession);
     setStatus(`✅ Success! Next round…`);
     await goldTransition(runToken);
     N = clamp(N + 1, MIN_N, MAX_N);
@@ -2079,7 +2086,7 @@ game.classList.add("goldGlow");
   async function onFailure() {
     phase = "transition";
     maxNThisSession = Math.max(maxNThisSession, N);
-        maybeUpdateBest(maxNThisSession);
+        notePotentialBest(maxNThisSession);
     setStatus(`❌ Wrong order. Adjusting…`);
     await goldTransition(runToken);
     N = clamp(N - 1, MIN_N, MAX_N);
@@ -2094,6 +2101,8 @@ game.classList.add("goldGlow");
 phase = "ended";
     clearBoard();
     scoreEl.textContent = `N = ${maxNThisSession}`;
+    // grant reward once, at end of session
+    grantEndOfSessionRewardIfAny();
     overlay.classList.add("show");
     setStatus("Game ended.");
     setLevel();
@@ -2146,6 +2155,7 @@ if(timeLeftS <= 0){
     phase = "idle";
     N = 2;
     maxNThisSession = 2;
+    pendingBestThisSession = 2;
     setLevel();
     clearBoard();
     setStatus("Starting…");
