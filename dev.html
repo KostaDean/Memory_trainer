@@ -687,7 +687,8 @@ body.bestFlash::before{
               rgba(255,215,0,0.10);
   mix-blend-mode: screen;
   animation: bestFlashAnim 0.9s ease-out forwards;
-  z-index: 9999;
+  /* keep above the Final Score overlay */
+  z-index: 100000;
 }
 @keyframes bestFlashAnim{
   0%{ opacity:0; }
@@ -932,20 +933,22 @@ body.bestFlash::before{
       document.body.classList.add('bestFlash');
       setTimeout(()=>document.body.classList.remove('bestFlash'), 900);
     }catch(e){}
+    if(!soundOn) return;
+    try{ ensureAudio(); }catch(e){}
+    // short fanfare (works reliably on iOS because this is called from an end-of-session tap)
     try{
-      // (uses existing playTone/ensureAudio)
       const seq = [
-        [523.25, 0.10], // C5
-        [659.25, 0.10], // E5
-        [783.99, 0.14], // G5
-        [1046.5, 0.22], // C6
-        [783.99, 0.12], // G5
-        [1046.5, 0.28], // C6
+        [523.25, 0.10, 0.22], // C5
+        [659.25, 0.10, 0.22], // E5
+        [783.99, 0.14, 0.20], // G5
+        [1046.50,0.22, 0.18], // C6
+        [783.99, 0.12, 0.16], // G5
+        [1046.50,0.26, 0.18], // C6
       ];
-      let t=0;
-      for(const [f,d] of seq){
-        setTimeout(()=>{ try{ playTone(f,d,0.35);}catch(_e){} }, t);
-        t += Math.max(40, d*1000);
+      let t = 0;
+      for(const [f,d,p] of seq){
+        setTimeout(()=>{ try{ playTone(f,d,p,"sawtooth"); }catch(_e){} }, t);
+        t += Math.max(50, d*1000);
       }
     }catch(e){}
   }
@@ -1076,17 +1079,17 @@ function fmtTime(s){
     if(!soundOn) return;
     // distinct fail sound (short descending buzz), safe if audio blocked
     try{
-      if(!audioCtx) return;
-      const t0 = audioCtx.currentTime;
-      const o = audioCtx.createOscillator();
-      const g = audioCtx.createGain();
+      const ctx = ensureAudio();
+      const t0 = ctx.currentTime;
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
       o.type = "sawtooth";
       o.frequency.setValueAtTime(240, t0);
       o.frequency.exponentialRampToValueAtTime(120, t0 + 0.18);
       g.gain.setValueAtTime(0.0001, t0);
       g.gain.exponentialRampToValueAtTime(0.20, t0 + 0.02);
       g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.22);
-      o.connect(g); g.connect(audioCtx.destination);
+      o.connect(g); g.connect(ctx.destination);
       o.start(t0); o.stop(t0 + 0.24);
     }catch(e){}
   }
@@ -1259,6 +1262,23 @@ const closeBtn = document.getElementById("closeBtn");
     audioCtx ??= new (window.AudioContext || window.webkitAudioContext)();
     if (audioCtx.state === "suspended") audioCtx.resume();
     return audioCtx;
+  }
+
+  // Basic tone helper (freq in Hz, dur in seconds)
+  function playTone(freq, dur=0.14, peak=0.22, type="sawtooth"){
+    if(!soundOn) return;
+    const ctx = ensureAudio();
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = type;
+    o.frequency.setValueAtTime(freq, ctx.currentTime);
+    const now = ctx.currentTime;
+    g.gain.setValueAtTime(0.0001, now);
+    g.gain.exponentialRampToValueAtTime(Math.max(0.0002, peak), now + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + Math.max(0.03, dur));
+    o.connect(g); g.connect(ctx.destination);
+    o.start(now);
+    o.stop(now + Math.max(0.05, dur) + 0.02);
   }
 
   // iOS audio unlock (first user gesture)
@@ -1808,14 +1828,18 @@ game.classList.add("goldGlow");
   }catch(e){}
   renderSoundToggle();
   if(soundToggleBtn){
-    soundToggleBtn.addEventListener("click", ()=>{
+    const toggleSound = (e)=>{
+      try{ e?.preventDefault?.(); }catch(_e){}
       soundOn = !soundOn;
       try{ localStorage.setItem(STORAGE_SOUND, soundOn ? "1" : "0"); }catch(e){}
       renderSoundToggle();
       try{ setStatus(soundOn ? "Sound on." : "Sound off."); }catch(e){}
       // If turning sound ON, ensure audio context exists (iOS needs gesture; this is a gesture)
       if(soundOn){ try{ ensureAudio(); }catch(e){} }
-    });
+    };
+    // pointerdown is more reliable than click on iOS when overlays / preventDefault are used elsewhere
+    soundToggleBtn.addEventListener("pointerdown", toggleSound);
+    soundToggleBtn.addEventListener("click", toggleSound);
   }
 
   let phase = "idle";
