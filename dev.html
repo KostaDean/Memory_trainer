@@ -723,6 +723,7 @@ body.bestFlash::before{
 <button class="tune-btn" disabled="" id="stopRecBtn" title="Stop recording">Stop</button>
 <button class="tune-btn" disabled="" id="clearRecBtn" title="Clear recording">Clear</button>
 <button class="tune-btn" disabled="" id="markRecBtn" title="Mark word boundary (use if screen taps miss)">Mark</button>
+<button class="tune-btn wide" id="soundToggleBtn" title="Toggle sound effects on/off">Sound: On</button>
 <span class="pill">Words: <b id="wordCount">0</b></span>
 </div>
 <div aria-label="Training tuning" class="tune-wrap">
@@ -781,6 +782,7 @@ body.bestFlash::before{
 
 <div style="display:flex; gap:10px; flex-wrap:wrap; margin:8px 0 12px; align-items:center;">
   <span class="pill">WeekHigh: <b id="bestValOverlay">2</b></span>
+  <button id="resetWeekHighBtn" title="Reset WeeklyHigh to 2 (testing)">Reset WeekHigh</button>
 </div>
 <div class="row" style="display:flex; gap:12px; justify-content:space-between; align-items:center;">
   <button id="addTimeOverlayBtn" title="Add more play time">Add Time</button>
@@ -968,6 +970,7 @@ function fmtTime(s){
 
   // Simple trumpet-like fanfare (no external audio file)
   function playFanfare(){
+    if(!soundOn) return;
     try{
       const AC = window.AudioContext || window.webkitAudioContext;
       if(!AC) return;
@@ -1037,6 +1040,20 @@ function fmtTime(s){
     });
   }
 
+  // Testing helper: reset weekly high back to 2 (so record/reward triggers are easy to test)
+  const resetWeekHighBtn = document.getElementById("resetWeekHighBtn");
+  function resetWeekHighTo2(){
+    bestN = 2;
+    try{ localStorage.setItem(STORAGE_WEEKHIGH, "2"); }catch(e){}
+    savePlayMeta();
+    renderPlayMeta();
+    setLevel();
+    setStatus("WeekHigh reset to 2 (testing).");
+  }
+  if(resetWeekHighBtn){
+    resetWeekHighBtn.addEventListener("click", resetWeekHighTo2);
+  }
+
 
   // ---- Forgiving misses (kid-friendly) ----
   const MISS_LIMIT = 3;     // per round
@@ -1049,6 +1066,7 @@ function fmtTime(s){
   }
 
   function playFail(){
+    if(!soundOn) return;
     // distinct fail sound (short descending buzz), safe if audio blocked
     try{
       if(!audioCtx) return;
@@ -1067,6 +1085,7 @@ function fmtTime(s){
   }
 
   function playShimmerMelody(){
+    if(!soundOn) return;
     // Brief, pleasant 3-note sparkle to accompany the gold shimmer cue.
     // Safe if audio is blocked; uses the existing AudioContext.
     try{
@@ -1240,6 +1259,7 @@ const closeBtn = document.getElementById("closeBtn");
 
 
   function playToneForIndex(idx, ms=140) {
+    if(!soundOn) return;
     const ctx = ensureAudio();
     const o = ctx.createOscillator();
     const g = ctx.createGain();
@@ -1767,6 +1787,30 @@ game.classList.add("goldGlow");
   // ---------- Game state ----------
   let N = 2;
   let soundOn = true; // sound effects enabled
+  const STORAGE_SOUND = "smt_sound_on";
+  const soundToggleBtn = document.getElementById("soundToggleBtn");
+  function renderSoundToggle(){
+    if(!soundToggleBtn) return;
+    soundToggleBtn.textContent = soundOn ? "Sound: On" : "Sound: Off";
+    soundToggleBtn.setAttribute("aria-pressed", soundOn ? "true" : "false");
+  }
+  // restore saved sound preference (defaults to on)
+  try{
+    const saved = localStorage.getItem(STORAGE_SOUND);
+    if(saved !== null) soundOn = (saved === "1");
+  }catch(e){}
+  renderSoundToggle();
+  if(soundToggleBtn){
+    soundToggleBtn.addEventListener("click", ()=>{
+      soundOn = !soundOn;
+      try{ localStorage.setItem(STORAGE_SOUND, soundOn ? "1" : "0"); }catch(e){}
+      renderSoundToggle();
+      try{ setStatus(soundOn ? "Sound on." : "Sound off."); }catch(e){}
+      // If turning sound ON, ensure audio context exists (iOS needs gesture; this is a gesture)
+      if(soundOn){ try{ ensureAudio(); }catch(e){} }
+    });
+  }
+
   let phase = "idle";
   let isRunning = false;
 
