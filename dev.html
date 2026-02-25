@@ -1366,17 +1366,18 @@ const closeBtn = document.getElementById("closeBtn");
     if (phase !== "idle") e.preventDefault();
   }, { passive:false });
 
-  const _isInteractive = (t) => !!(t && (t.closest?.(".circle") || t.closest?.("button") || t.closest?.("select")));
+  const _isInteractive = (t) => !!(t && (t.closest?.(".circle") || t.closest?.("button") || t.closest?.("select") || t.closest?.("a") || t.closest?.("input")));
 
-  document.addEventListener("touchstart", (e) => {
-    if (typeof voice !== "undefined" && voice && voice.recording) return;
-    if (phase !== "idle" && !_isInteractive(e.target)) e.preventDefault();
-  }, { passive:false });
+// Limit touch prevention to the game surface only (keeps Donate/link taps working on iOS Safari)
+game.addEventListener("touchstart", (e) => {
+  if (typeof voice !== "undefined" && voice && voice.recording) return;
+  if (phase !== "idle" && !_isInteractive(e.target)) e.preventDefault();
+}, { passive:false });
 
-  document.addEventListener("touchend", (e) => {
-    if (typeof voice !== "undefined" && voice && voice.recording) return;
-    if (phase !== "idle" && !_isInteractive(e.target)) e.preventDefault();
-  }, { passive:false });
+game.addEventListener("touchend", (e) => {
+  if (typeof voice !== "undefined" && voice && voice.recording) return;
+  if (phase !== "idle" && !_isInteractive(e.target)) e.preventDefault();
+}, { passive:false });
 
   // ---------- Background palette (modular) ----------
   const BACKGROUND_THEMES = {
