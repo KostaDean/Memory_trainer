@@ -1818,6 +1818,7 @@ game.classList.add("goldGlow");
   let soundOn = true; // sound effects enabled
   const STORAGE_SOUND = "smt_sound_on";
   const soundToggleBtn = document.getElementById("soundToggleBtn");
+  let lastSoundToggleTS = 0;
   function renderSoundToggle(){
     if(!soundToggleBtn) return;
     soundToggleBtn.textContent = soundOn ? "Sound: On" : "Sound: Off";
@@ -1833,6 +1834,9 @@ game.classList.add("goldGlow");
     const toggleSound = (e)=>{
       try{ e?.preventDefault?.(); }catch(_e){}
       try{ e?.stopPropagation?.(); }catch(_e){}
+      const _now = Date.now();
+      if(_now - lastSoundToggleTS < 350) return;
+      lastSoundToggleTS = _now;
       soundOn = !soundOn;
       try{ localStorage.setItem(STORAGE_SOUND, soundOn ? "1" : "0"); }catch(e){}
       renderSoundToggle();
