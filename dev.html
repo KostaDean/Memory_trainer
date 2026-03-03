@@ -699,28 +699,7 @@ body.bestFlash::before{
 #panelBtn{ white-space:nowrap; }
 
 
-#addTimeBtn,#addTimeOverlayBtn{padding:10px 16px;border-radius:14px;background:#f7931a;color:#fff;font-weight:800;border:none;box-shadow:0 4px 14px rgba(247,147,26,0.45);font-size:20px;letter-spacing:0.5px;} 
-
-/* When a $1 checkout is completed and the user returns, we "arm" the button to apply +5 minutes */
-#addTimeOverlayBtn.armed{
-  background:#1fbf5b !important;
-  box-shadow:
-    0 0 0 3px rgba(46,204,113,0.85),
-    0 0 38px rgba(46,204,113,0.95),
-    0 0 70px rgba(46,204,113,0.55),
-    0 8px 22px rgba(0,0,0,0.35);
-  animation: greenPulse 0.85s ease-in-out infinite;
-  font-size:24px !important;
-  letter-spacing:2px !important;
-  text-transform:uppercase !important;
-}
-@keyframes greenPulse{
-  0%,100%{ transform: scale(1.00); filter: brightness(1.05); }
-  50%{ transform: scale(1.07); filter: brightness(1.25); }
-}
-
-50%{ transform: translateZ(0) scale(1.03); filter: brightness(1.12); }
-}
+#addTimeBtn,#addTimeOverlayBtn{padding:10px 16px;border-radius:14px;background:#f7931a;color:#fff;font-weight:800;border:none;box-shadow:0 4px 14px rgba(247,147,26,0.45);} 
 
 #uploadBtn,#recBtn{padding:6px 10px !important;min-width:auto !important;font-weight:700;letter-spacing:0 !important;}
 </style>
@@ -807,10 +786,7 @@ body.bestFlash::before{
   <button id="resetWeekHighBtn" title="Reset WeeklyHigh to 2 (testing)">Reset WeekHigh</button>
 </div>
 <div class="row" style="display:flex; gap:12px; justify-content:space-between; align-items:center;">
-  <div style="display:flex;flex-direction:column;gap:4px;">
-    <button id="addTimeOverlayBtn" title="Get +5 minutes via $1 PayPal checkout">More Time</button>
-    <div id="moreTimeHint" style="font-size:12px;opacity:.85;line-height:1.15;text-align:center;">After PayPal, tap Back &amp; press <b>ADD</b></div>
-  </div>
+  <button id="addTimeOverlayBtn" title="Add more play time">Add Time</button>
   <span class="pill" style="margin-left:auto; margin-right:auto;">Time: <b id="timeLeftOverlay">05:00</b></span>
   <button id="closeFromOverlay">Close</button>
 </div>
@@ -1060,52 +1036,16 @@ function fmtTime(s){
         // time expired -> end current session and disable Play
         try{ runToken++; }catch(e){}
         try{ showFinalScore(); }catch(e){}
-        try{ setStatus("Time is up. Tap \"More Time\" to continue."); }catch(e){}
+        try{ setStatus("Time is up. Tap \"Add Time\" to continue."); }catch(e){}
         renderPlayMeta();
       }
     }, 1000);
-  }
-
-  function syncAddTimeUI(){
-    if(!addTimeBtn) return;
-    const KEY = "KDC_addTimePending";
-    const windowMs = 15*60*1000; // 15 minutes to return and claim
-    const now = Date.now();
-    const pendingRaw = localStorage.getItem(KEY);
-    const pendingTs = pendingRaw ? parseInt(pendingRaw, 10) : NaN;
-    const pendingValid = Number.isFinite(pendingTs) && (now - pendingTs) < windowMs;
-
-    const hintEl = document.getElementById("moreTimeHint");
-    if(pendingValid){
-      addTimeBtn.textContent = "ADD";
-      addTimeBtn.classList.add("armed");
-      try{ if(hintEl) hintEl.style.display = "block"; }catch(e){}
-      // If we were on the Final Score overlay when we left for PayPal, keep it open on return
-      try{
-        if(overlay && sessionStorage.getItem(KEY_RETURN_SHOW_FINAL) === "1"){
-          overlay.classList.add("show");
-          // ensure the ADD button is visible
-          setTimeout(()=>{ try{ addTimeBtn.scrollIntoView({block:"center", inline:"nearest"}); }catch(e){} }, 60);
-        }
-      }catch(e){}
-    }else{
-      addTimeBtn.textContent = "More Time";
-      addTimeBtn.classList.remove("armed");
-      try{ if(hintEl) hintEl.style.display = "none"; }catch(e){}
-      if(pendingRaw) localStorage.removeItem(KEY);
-    }
   }
 
   // init play meta
   loadPlayMeta();
   renderPlayMeta();
   ensurePlayTimer();
-  syncAddTimeUI();
-
-  // iOS/Safari often returns to the previous page via back/forward cache (no reload).
-  // These hooks refresh the button state when the page becomes visible again.
-  window.addEventListener("pageshow", syncAddTimeUI);
-  document.addEventListener("visibilitychange", ()=>{ if(!document.hidden) syncAddTimeUI(); });
 
   if(addTimeBtn){
     addTimeBtn.addEventListener("click", ()=>{ 
@@ -1119,14 +1059,7 @@ function fmtTime(s){
       if(!pending){
         localStorage.setItem(KEY, String(now));
         try{ savePlayMeta(); }catch(e){}
-        addTimeBtn.classList.remove("armed");
-      try{ if(hintEl) hintEl.style.display = "none"; }catch(e){}
-        addTimeBtn.textContent = "More Time";
-        setStatus("Opening PayPal… complete the $1 payment, then tap the browser Back button to return and press ADD to apply +5 minutes.");
-        try{
-          if(overlay && overlay.classList.contains("show")) sessionStorage.setItem(KEY_RETURN_SHOW_FINAL, "1");
-          else sessionStorage.removeItem(KEY_RETURN_SHOW_FINAL);
-        }catch(e){}
+        setStatus("Opening PayPal… complete the $1 payment, then come back and tap Add Time again to apply +5 minutes.");
         window.location.href = ADDTIME_PAYMENT_URL;
         return;
       }
@@ -1134,22 +1067,14 @@ function fmtTime(s){
       // Second tap: if they came back within the window, grant time
       if(now - pending > windowMs){
         localStorage.removeItem(KEY);
-        addTimeBtn.classList.remove("armed");
-      try{ if(hintEl) hintEl.style.display = "none"; }catch(e){}
-        addTimeBtn.textContent = "More Time";
-        try{ sessionStorage.removeItem(KEY_RETURN_SHOW_FINAL); }catch(e){}
-        setStatus("Payment window expired. Tap More Time again to reopen PayPal.");
+        setStatus("Payment window expired. Tap Add Time again to reopen PayPal.");
         return;
       }
 
       localStorage.removeItem(KEY);
-      try{ sessionStorage.removeItem(KEY_RETURN_SHOW_FINAL); }catch(e){}
       timeLeftS += 5*60;
       savePlayMeta();
       renderPlayMeta();
-      addTimeBtn.classList.remove("armed");
-      try{ if(hintEl) hintEl.style.display = "none"; }catch(e){}
-      addTimeBtn.textContent = "More Time";
       setStatus("Added 5 minutes. Thank you!");
     });
   }
@@ -1291,10 +1216,6 @@ const closeBtn = document.getElementById("closeBtn");
   const scoreEl = document.getElementById("score");
   const restartFromOverlay = document.getElementById("restartFromOverlay");
   const closeFromOverlay = document.getElementById("closeFromOverlay");
-
-  // Remember whether the Final Score overlay was open when we left for PayPal
-  const KEY_RETURN_SHOW_FINAL = "KDC_returnShowFinal";
-
 
   const linesLayer = document.getElementById("linesLayer");
 
