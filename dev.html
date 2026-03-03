@@ -745,7 +745,7 @@ body.bestFlash::before{
 <!-- status is kept off-layout to prevent iPhone Safari from shifting the header -->
 <div id="status" class="sr-only" aria-live="polite"></div>
 <div id="rightGroup"><button id="panelBtn" title="Show/hide the control panel">Panel</button>
-<a href="https://www.paypal.com/paypalme/ConstantinosRagazas"
+<a href="https://www.paypal.com/donate/?hosted_button_id=DMMXW39SYGURC"
    target="_blank"
    rel="noopener"
    id="donateBtn"
@@ -797,11 +797,7 @@ body.bestFlash::before{
 <input accept="image/*" id="bgFileInput" style="display:none" type="file"/>
 <script>
 
-  
-  // === PayPal links (Kosta Dean Creative) ===
-  const PAYPAL_DONATE_URL = "https://www.paypal.com/donate/?hosted_button_id=DMMXW39SYGURC";
-  const ADDTIME_PAYMENT_URL = "https://www.paypal.com/ncp/payment/AXBCUP7FMYRTJ";
-// === iOS Safari bottom bar mitigation (visualViewport) ===
+  // === iOS Safari bottom bar mitigation (visualViewport) ===
   function __updateViewportVars(){
     try{
       const vv = window.visualViewport;
@@ -1048,34 +1044,11 @@ function fmtTime(s){
   ensurePlayTimer();
 
   if(addTimeBtn){
-    addTimeBtn.addEventListener("click", ()=>{ 
-      const now = Date.now();
-      const KEY = "KDC_addTimePending";
-      const windowMs = 15*60*1000; // 15 minutes to return and claim
-      const pendingRaw = localStorage.getItem(KEY);
-      const pending = pendingRaw ? parseInt(pendingRaw, 10) : 0;
-
-      // First tap: send user to the fixed $1 "Add more time" checkout
-      if(!pending){
-        localStorage.setItem(KEY, String(now));
-        try{ savePlayMeta(); }catch(e){}
-        setStatus("Opening PayPal… complete the $1 payment, then come back and tap Add Time again to apply +5 minutes.");
-        window.location.href = ADDTIME_PAYMENT_URL;
-        return;
-      }
-
-      // Second tap: if they came back within the window, grant time
-      if(now - pending > windowMs){
-        localStorage.removeItem(KEY);
-        setStatus("Payment window expired. Tap Add Time again to reopen PayPal.");
-        return;
-      }
-
-      localStorage.removeItem(KEY);
+    addTimeBtn.addEventListener("click", ()=>{
       timeLeftS += 5*60;
       savePlayMeta();
       renderPlayMeta();
-      setStatus("Added 5 minutes. Thank you!");
+      setStatus("Added 5 minutes.");
     });
   }
 
