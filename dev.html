@@ -704,12 +704,14 @@ body.bestFlash::before{
 #uploadBtn,#recBtn{padding:6px 10px !important;min-width:auto !important;font-weight:700;letter-spacing:0 !important;}
 
 /* --- More Time / ADD emphasis --- */
-#addTimeBtn.moretime-armed{
+#addTimeOverlayBtn.moretime-armed{
   font-weight: 900;
-  font-size: 1.15em;
+  font-size: 1.45em;
   letter-spacing: 1px;
   text-transform: uppercase;
-  box-shadow: 0 0 18px rgba(0,255,120,.95), 0 0 34px rgba(0,255,120,.75);
+  color: #0b2a18;
+  background: linear-gradient(180deg, rgba(0,255,120,0.95), rgba(0,200,95,0.85));
+  box-shadow: 0 0 26px rgba(0,255,120,1), 0 0 52px rgba(0,255,120,.95), 0 0 84px rgba(0,255,120,.75);
   animation: moretimePulse 0.9s ease-in-out infinite;
 }
 @keyframes moretimePulse{
